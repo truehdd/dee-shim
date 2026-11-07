@@ -1,0 +1,37 @@
+[package]
+name = "dee_shim"
+description = "Run Dolby Encoding Engine encoders with controls their CLI does not expose"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+build = "build/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive", "wrap_help", "string"] }
+dshim-image.workspace = true
+dshim-levers.workspace = true
+dshim-log.workspace = true
+dshim-profiles = { workspace = true, default-features = true }
+log.workspace = true
+object.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile = "3"
+
+# The in-process host links the engine. Its detours are x86_64 only, as are the DEE tools.
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+dshim-engine.workspace = true
+
+[build-dependencies]
+semver.workspace = true
+
+[dev-dependencies]
+semver.workspace = true
+
+# The build script's version label has its own tests, run as this test target.
+[[test]]
+name = "version"
+path = "build/version.rs"

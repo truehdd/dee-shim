@@ -1,0 +1,21 @@
+[package]
+name = "dshim-profiles"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+dshim-dee67 = { workspace = true, optional = true }
+dshim-profile-model.workspace = true
+
+# Tool and DEE version features are independent. A profile is compiled only when both match.
+# The DEE 6.7 profiles are in crates/dee67, which dee_6_7 pulls in.
+[features]
+default = ["ddp", "ddpjoc", "dthd", "dee_6_7"]
+dee_6_7 = ["dep:dshim-dee67", "dshim-dee67/dee_6_7"]
+ddp = ["dshim-dee67?/ddp"]
+ddpjoc = ["dshim-dee67?/ddpjoc"]
+dthd = ["dshim-dee67?/dthd"]

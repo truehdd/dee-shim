@@ -1,0 +1,11 @@
+[package]
+name = "dshim-levers"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dev-dependencies]
+dshim-profiles = { workspace = true, default-features = true }

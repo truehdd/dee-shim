@@ -1,0 +1,10 @@
+# cargo-about 0.9.3 configuration for THIRD_PARTY_LICENSES.txt. Regenerate after a dependency change:
+#   cargo about generate --workspace --frozen --fail about.hbs -o THIRD_PARTY_LICENSES.txt
+# Licences dependencies may use; a new one fails generation until it is reviewed and added.
+accepted = ["Apache-2.0", "MIT", "Unicode-3.0"]
+# Every target dee_shim is released for, so one file covers all three packages.
+targets = ["x86_64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-pc-windows-msvc"]
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+# The workspace's own crates are covered by LICENSE and NOTICE.
+private = { ignore = true }

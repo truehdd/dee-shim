@@ -1,0 +1,24 @@
+[package]
+name = "dshim-engine"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+dshim-image.workspace = true
+dshim-levers.workspace = true
+dshim-log.workspace = true
+dshim-profiles.workspace = true
+log.workspace = true
+
+# Tool features select modules; the DEE version feature selects site profiles. Both are
+# needed for a narrow build, e.g. --no-default-features --features dthd,dee_6_7.
+[features]
+default = ["ddp", "ddpjoc", "dthd", "dee_6_7"]
+dee_6_7 = ["dshim-profiles/dee_6_7"]
+ddp = ["dshim-profiles/ddp"]
+ddpjoc = ["dshim-profiles/ddpjoc"]
+dthd = ["dshim-profiles/dthd"]

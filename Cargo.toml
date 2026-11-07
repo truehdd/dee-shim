@@ -1,0 +1,36 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Rainbaby"]
+edition = "2021"
+# The oldest Rust that builds and runs it (CI's msrv job). On Linux it is also the first release
+# that links with rust-lld by default; the system GNU linker gives a binary that does not load.
+rust-version = "1.90"
+license = "Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+dshim-dee67 = { path = "crates/dee67" }
+dshim-engine = { path = "crates/dshim" }
+dshim-image = { path = "crates/image" }
+dshim-levers = { path = "crates/levers" }
+dshim-log = { path = "crates/log" }
+dshim-profile-model = { path = "crates/profile-model" }
+# Without its default features, so the engine's own tool features choose the profiles.
+dshim-profiles = { path = "crates/profiles", default-features = false }
+log = "0.4"
+object = "0.36"
+semver = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# DEE's own code calls the engine's hooks, so a panic must never unwind through its frames.
+[profile.release]
+panic = "abort"
+opt-level = 2
+
+[profile.dev]
+panic = "abort"

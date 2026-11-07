@@ -1,0 +1,19 @@
+[package]
+name = "dshim-dee67"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+dshim-profile-model.workspace = true
+
+# The same tool and DEE version features as dshim-profiles, which forwards them. A profile is
+# compiled only when its tool feature and dee_6_7 are both selected.
+[features]
+dee_6_7 = []
+ddp = []
+ddpjoc = []
+dthd = []

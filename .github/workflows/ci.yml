@@ -1,0 +1,122 @@
+name: CI
+
+# Build, lint and test on the three systems DEE runs on. The encodes themselves need licensed
+# DEE tools, which CI does not have.
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # The toolchain CI builds with. Cargo.toml's rust-version is the oldest that works (msrv job).
+  RUST_TOOLCHAIN: "1.97.1"
+  CARGO_ABOUT: "0.9.3"
+
+jobs:
+  linux:
+    # Rocky Linux 9 has glibc 2.34, the version DEE 6.7 needs. Building on it keeps dee_shim from
+    # picking up newer glibc symbols, which tools/package_release.py would refuse.
+    runs-on: ubuntu-24.04
+    container: rockylinux/rockylinux:9
+    steps:
+      - name: Install build tools
+        run: dnf install -y --setopt=install_weak_deps=False git gcc
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Install Rust
+        run: |
+          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal \
+            --default-toolchain "$RUST_TOOLCHAIN" --component clippy,rustfmt
+          # The image declares no PATH, so a GITHUB_PATH entry alone would become the whole PATH
+          # of later steps; carry the container's own PATH over first.
+          echo "$PATH" >> "$GITHUB_PATH"
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --locked --workspace
+
+  macos:
+    # The DEE tools are x86_64; dee_shim is built for that target and its tests run under
+    # Rosetta 2 on an Apple silicon runner.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install Rosetta 2
+        run: sudo softwareupdate --install-rosetta --agree-to-license
+      - name: Install Rust
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component clippy \
+            --target x86_64-apple-darwin
+          rustup default "$RUST_TOOLCHAIN"
+      - name: Clippy
+        run: >
+          cargo clippy --locked --workspace --all-targets --target x86_64-apple-darwin
+          -- -D warnings
+      - name: Test
+        run: cargo test --locked --workspace --target x86_64-apple-darwin
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component clippy
+          rustup default "$RUST_TOOLCHAIN"
+      - name: Clippy
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --locked --workspace
+
+  licences:
+    # THIRD_PARTY_LICENSES.txt must match the locked dependencies; a new licence fails here
+    # until it is reviewed and added to about.toml.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Rust and cargo-about
+        run: |
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal
+          rustup default "$RUST_TOOLCHAIN"
+          cargo install cargo-about --version "$CARGO_ABOUT" --locked --features cli
+      - name: Check THIRD_PARTY_LICENSES.txt
+        run: |
+          cargo fetch --locked
+          cargo about generate --workspace --frozen --fail about.hbs -o THIRD_PARTY_LICENSES.txt
+          git diff --exit-code THIRD_PARTY_LICENSES.txt
+
+  msrv:
+    # The oldest Rust in Cargo.toml (rust-version). On Linux it is also the first release that
+    # links with rust-lld by default; the system GNU linker gives a binary that does not load.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.90 --profile minimal \
+            --target x86_64-apple-darwin,x86_64-pc-windows-gnu
+          rustup default 1.90
+      - name: Check every target
+        run: |
+          for target in x86_64-unknown-linux-gnu x86_64-apple-darwin x86_64-pc-windows-gnu; do
+            cargo check --locked --workspace --all-targets --target "$target"
+          done
+      - name: Test
+        run: cargo test --locked --workspace

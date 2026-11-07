@@ -1,0 +1,13 @@
+Third-party licences for dee_shim
+
+dee_shim is built from the Rust crates listed below. Each section names the crates released
+under one licence text, followed by that text.
+{{#each licenses}}
+
+================================================================================
+{{{name}}} ({{{id}}})
+Used by: {{#each used_by}}{{{crate.name}}} {{{crate.version}}}{{#unless @last}}, {{/unless}}{{/each}}
+================================================================================
+
+{{{text}}}
+{{/each}}

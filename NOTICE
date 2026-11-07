@@ -1,0 +1,12 @@
+dee-shim
+Copyright 2026 Rainbaby
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Release packages include third-party Rust crates; their licences are in
+THIRD_PARTY_LICENSES.txt.
+
+Dolby, Dolby Atmos, Dolby Digital Plus and Dolby TrueHD are trademarks of
+Dolby Laboratories. dee-shim is not affiliated with or endorsed by Dolby
+Laboratories. It does not include the Dolby Encoding Engine or any Dolby
+licence; it requires a licensed copy of the Dolby Encoding Engine.

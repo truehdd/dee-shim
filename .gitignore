@@ -1,0 +1,14 @@
+/target
+/dist/
+*.so
+*.dylib
+*.dll
+
+.DS_Store
+__pycache__/
+
+# Local maintainer tools and rules, kept out of the repository.
+/docs/
+/tools/*
+!/tools/package_release.py
+!/tools/release_notes.py
