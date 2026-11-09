@@ -152,6 +152,20 @@ dee_shim dthd_encoder --layout 8ch=5.1.2 -- \
   --presentation atmos --input-format atmos_mezz -i in.atmos -o out.mlp
 ```
 
+### Tips
+
+**Custom dialnorm.** DEE sets it natively, and dee_shim passes it through: give
+`--loudness-management skip:dialnorm=N` after the `--`, with N from -31 to -1. Only
+`dee_dthd_encoder` documents this mode, but `dee_ddp_encoder` and `dee_ddpjoc_encoder` accept it
+too, with every layout including the `/eac3` ones; each substream carries the value. `skip` turns
+loudness measurement off, so N is coded as given.
+
+```sh
+dee_shim ddpjoc_encoder --layout 7.1 -- \
+  --loudness-management skip:dialnorm=-20 \
+  --input-format atmos_mezz -i in.atmos -o out.ec3
+```
+
 ## How it works
 
 `dee_shim` starts a child copy of itself that maps the DEE tool into its own address space
