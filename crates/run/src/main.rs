@@ -897,6 +897,29 @@ fn run() -> i32 {
         }
         None => (None, None),
     };
+    // A native `--data-rate` takes the `--bitrate` path, and both given must agree. dthd's
+    // `--data-rate` is its own option.
+    let mut bitrate = bitrate;
+    let mut rate_flag = "--bitrate";
+    if recipe.is_some() {
+        let native = native_rate(&run.native)
+            .unwrap_or_else(|error| usage_error(tool, ErrorKind::InvalidValue, error));
+        if let Some(n) = native {
+            let ours = bitrate.or(split_arg.map(|(r0, r1)| r0 + r1));
+            match ours {
+                Some(k) if k != n => usage_error(
+                    tool,
+                    ErrorKind::ArgumentConflict,
+                    format!("--bitrate gives {k} kbps but the native --data-rate gives {n}; give one, or the same total"),
+                ),
+                Some(_) => {}
+                None => {
+                    bitrate = Some(n);
+                    rate_flag = "--data-rate";
+                }
+            }
+        }
+    }
     if let Tool::Dthd(a) = tool {
         if a.list {
             dthd_list();
@@ -1009,10 +1032,8 @@ fn run() -> i32 {
         }
     }
 
-    // Our flags win over native ones. We own `-e`/`--encoder` (from --mode, else the recipe) and
-    // `--data-rate` (from --bitrate): any native copy is stripped and ours goes first, so the
-    // binary sees exactly one. A native -e keeps its sub-options under our mode, and --mode's own
-    // sub-options win over them.
+    // We own `-e` and `--data-rate`: native copies are stripped and ours goes first. A native
+    // mode that differs from ours is refused; a native -e keeps its sub-options, under --mode's.
     let native_e = native_mode(&run.native);
     let (native_base, mut native_opts) = split_mode(native_e.as_deref());
     let mut rewrite = false;
@@ -1043,7 +1064,19 @@ fn run() -> i32 {
         let own_keys: Vec<String> = own.iter().map(|o| key(o)).collect();
         if let (Some(b), Some(n)) = (base.as_deref(), native_base.as_deref()) {
             if b != n {
-                log::info!("native -e mode {n} replaced by {b}");
+                let source = if recipe.and_then(|r| r.mode.as_ref()).is_some() {
+                    "--mode".to_owned()
+                } else {
+                    format!(
+                        "--layout {}",
+                        recipe.and_then(|r| r.layout.as_deref()).unwrap_or("")
+                    )
+                };
+                usage_error(
+                    tool,
+                    ErrorKind::ArgumentConflict,
+                    format!("{source} runs mode {b} but the native -e names {n}; give one, or the same mode"),
+                );
             }
         }
         let opts: Vec<String> = native_opts
@@ -1060,16 +1093,9 @@ fn run() -> i32 {
     // E-AC-3 uses the weighted JOC allocation for every total, without AC-3 rounding.
     let eac3_core = env.get("DDPJOC_CORE").map(String::as_str) == Some("eac3");
     let default_split = (eac3_core && split_arg.is_none()).then(|| {
-        let native_total = if bitrate.is_none() {
-            native_rate(&run.native).unwrap_or_else(|error| {
-                usage_error(tool, ErrorKind::InvalidValue, error);
-            })
-        } else {
-            None
-        };
-        let total = bitrate.or(native_total).unwrap_or(1152);
+        let total = bitrate.unwrap_or(1152);
         let (first, dependent) = rates::joc_eac3_split(total).unwrap_or_else(|error| {
-            usage_error(tool, ErrorKind::InvalidValue, format!("--bitrate {total}: {error}"));
+            usage_error(tool, ErrorKind::InvalidValue, format!("{rate_flag} {total}: {error}"));
         });
         log::info!("E-AC-3 JOC total {total}: weighted split {first}:{dependent} (use --bitrate R0:R1 to choose)");
         (first, dependent)
@@ -1129,7 +1155,7 @@ fn run() -> i32 {
                 usage_error(
                     tool,
                     ErrorKind::InvalidValue,
-                    format!("--bitrate {k} is not accepted in mode {}. Valid: {}\n\nSee `dee_shim {} --list` for the list per input channel count.",
+                    format!("{rate_flag} {k} is not accepted in mode {}. Valid: {}\n\nSee `dee_shim {} --list` for the list per input channel count.",
                     rates::base_mode(m),
                     list.join(" "),
                     tool.name()),

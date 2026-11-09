@@ -125,9 +125,11 @@ DEE has no mode that codes these extended layouts with an E-AC-3 core. The `/eac
 dee_shim's own: it runs DEE in the mode shown and replaces the core, so the mode a layout uses
 does not name the stream it produces.
 
-DEE's own `-e` may still be given: its mode gives way to the layout's, and its sub-options are
-kept, so `-e ddp:drc_profile=none` works with any `ddp_encoder` layout. `--mode` overrides the layout's
-mode outright; sub-options given with it win over those of a native `-e`.
+DEE's own `-e` may still be given. Its sub-options are kept, so `-e ddp:drc_profile=none` works with
+any `ddp_encoder` layout; a mode named in it must match the layout's mode or `--mode`, or dee_shim
+refuses the run. `--mode` overrides the layout's mode outright; sub-options given with it win over
+those of a native `-e`. A native `--data-rate` is handled exactly as `--bitrate`; giving both with
+different totals is refused.
 A layout's own mode is the tested one; another mode can ask for something the encoder refuses.
 `dee_ddp_encoder` also has two modes its documentation omits, `bluray` and `bluray_secondary` (one E-AC-3
 independent substream, at most 256 kbps). `--dry-run` prints the `-e` that DEE will get.

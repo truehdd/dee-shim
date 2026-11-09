@@ -3,6 +3,15 @@
 Each release has a section headed by its tag. The release workflow publishes that section as the
 release notes and refuses to run without it, so write it before running the workflow.
 
+## Unreleased
+
+- A native `--data-rate` for `ddp_encoder` and `ddpjoc_encoder` is now handled as `--bitrate`:
+  it is checked against the mode's rates and drives the layout's rate handling. Before, a
+  layout could code its default rate in its place without a message. `--bitrate` and a native
+  `--data-rate` with different totals are refused.
+- A native `-e` whose mode differs from the layout's or `--mode` is refused; before, it was
+  replaced.
+
 ## v0.1.0
 
 First release, for DEE 6.7 on macOS, Linux and Windows.
