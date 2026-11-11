@@ -3,7 +3,7 @@
 Each release has a section headed by its tag. The release workflow publishes that section as the
 release notes and refuses to run without it, so write it before running the workflow.
 
-## Unreleased
+## v0.2.0
 
 - A native `--data-rate` for `ddp_encoder` and `ddpjoc_encoder` is now handled as `--bitrate`:
   it is checked against the mode's rates and drives the layout's rate handling. Before, a
