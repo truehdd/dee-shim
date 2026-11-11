@@ -210,7 +210,14 @@ struct Oamd {
     #[arg(long, value_name = "on|off", hide = true)]
     oamd_own_gains: Option<Switch>,
 
-    /// Own clusters, exact timing, keep quiet and own gains
+    /// When the objects fit, code the elements in master order
+    ///
+    /// Bed channels other than LFE that sound from the start, then the objects; DEE codes them
+    /// in the order its clusterer first picked them
+    #[arg(long, value_name = "on|off", hide = true)]
+    oamd_keep_order: Option<Switch>,
+
+    /// Own clusters, exact timing, keep quiet, own gains and keep order
     ///
     /// Above the clusterer's budget the clusterer runs as shipped
     #[arg(long, value_name = "on|off", hide = true)]
@@ -219,8 +226,8 @@ struct Oamd {
     /// Code a prepared master's object metadata as authored
     ///
     /// Positions and sizes unsmoothed (positions at extended precision in ddpjoc); when the
-    /// objects fit, one cluster per object, each jump in its own frame, quiet objects kept and
-    /// each mixed only into its own cluster
+    /// objects fit, one cluster per object, each jump in its own frame, quiet objects kept,
+    /// each mixed only into its own cluster, and the elements in master order
     #[arg(long, value_name = "on|off", hide_possible_values = true)]
     oamd_as_is: Option<Switch>,
 }
@@ -237,6 +244,7 @@ impl Oamd {
                 (self.oamd_exact_timing, "OAMD_EXACT_TIMING"),
                 (self.oamd_keep_quiet, "OAMD_KEEP_QUIET"),
                 (self.oamd_own_gains, "OAMD_OWN_GAINS"),
+                (self.oamd_keep_order, "OAMD_KEEP_ORDER"),
                 (self.oamd_cluster_passthrough, "OAMD_CLUSTER_PASSTHROUGH"),
                 (self.oamd_as_is, "OAMD_AS_IS"),
             ],

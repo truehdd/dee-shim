@@ -14,6 +14,10 @@ release notes and refuses to run without it, so write it before running the work
 - `dthd_encoder --oamd-as-is`: an object below DEE's silence threshold now gets its own cluster
   when the frame fits. Before, it was mixed into a neighbour's cluster and both came back 1 LSB
   off (#4).
+- `--oamd-as-is`, for `dthd_encoder` and `ddpjoc_encoder`: a master whose elements fit is coded
+  in master order: bed channels other than LFE that sound from the start, then the objects.
+  Before, the order was the one DEE's clusterer first picked them in. `--oamd-keep-order off`
+  keeps DEE's order.
 
 ## v0.1.0
 

@@ -51,6 +51,7 @@ static THRESHOLD_CELL: AtomicUsize = AtomicUsize::new(0);
 static SLOT_IDS: AtomicUsize = AtomicUsize::new(0);
 static EXACT_TIMING: AtomicU8 = AtomicU8::new(0);
 static OWN_GAINS: AtomicU8 = AtomicU8::new(0);
+static KEEP_ORDER: AtomicU8 = AtomicU8::new(0);
 // 1 while the current frame's candidates fit in its clusters; set at each greedy selection, read
 // by the keep stub inside it and by the activity and gains hooks after it in the same frame.
 static FITS: AtomicU8 = AtomicU8::new(0);
@@ -74,6 +75,22 @@ const RECORD_FLAG: usize = 4;
 // Word 0 of a record: the element is silent, written by the preprocessor's silence detector.
 const RECORD_SILENT: usize = 0;
 const STATE_SLOT_IDS: usize = 32;
+// A record's position (x, y, z as f32, 0..1) and its bed channel mark (1 on a bed channel).
+const RECORD_POSITION: usize = 24;
+const RECORD_BED: usize = 56;
+// The bed channel records other than LFE, which the clusterer keeps together and in this
+// order ahead of the object records: L R C Lss Rss Lrs Rrs Lts Rts, each at its speaker.
+const BED_POSITIONS: [[f32; 3]; 9] = [
+    [0.0, 0.0, 0.0],
+    [1.0, 0.0, 0.0],
+    [0.5, 0.0, 0.0],
+    [0.0, 0.5, 0.0],
+    [1.0, 0.5, 0.0],
+    [0.0, 1.0, 0.0],
+    [1.0, 1.0, 0.0],
+    [0.0, 0.5, 1.0],
+    [1.0, 0.5, 1.0],
+];
 
 fn bump(i: usize) {
     STATS[i].fetch_add(1, Ordering::Relaxed);
@@ -186,7 +203,58 @@ extern "C" fn hook_cluster_activity(
     r
 }
 
-/// candidate_filter(count, K, ?, records, weights, ?, state, ...): note the slot element ids;
+/// The index of the first bed channel record: the first run of records carrying the bed mark
+/// at the bed speakers' positions, in order. None when the records are laid out otherwise.
+fn bed_block(recs: usize, count: usize) -> Option<usize> {
+    let last = count.checked_sub(BED_POSITIONS.len())?;
+    (0..=last).find(|&i| {
+        BED_POSITIONS.iter().enumerate().all(|(c, p)| unsafe {
+            let r = recs + RECORD_SIZE * (i + c);
+            ((r + RECORD_BED) as *const u32).read_unaligned() == 1
+                && ((r + RECORD_POSITION) as *const [f32; 3]).read_unaligned() == *p
+        })
+    })
+}
+
+/// Keep order: in the first frame with anything to hear, while no slot has an element, seed
+/// the slots with the master's elements in master order: the bed channels other than LFE that
+/// sound in that frame, then the objects. DEE's slot continuity then keeps each element in its
+/// slot. Nothing is seeded when the elements exceed the slots or the bed records are not found.
+fn seed_slots(ids: usize, k: usize, recs: usize, count: usize) {
+    let ids = ids as *mut i32;
+    if k == 0 || (0..k).any(|s| unsafe { *ids.add(s) } != -1) {
+        return;
+    }
+    let audible = |i: usize| {
+        let silent = unsafe { *((recs + RECORD_SIZE * i + RECORD_SILENT) as *const u32) };
+        silent == 0 || ELEMENT_LIVE.get().and_then(|f| f(i)) == Some(true)
+    };
+    if !(0..count).any(audible) {
+        return;
+    }
+    let Some(bed) = bed_block(recs, count) else {
+        return;
+    };
+    let first_object = bed + BED_POSITIONS.len();
+    let elements: Vec<usize> = (bed..first_object)
+        .filter(|&i| audible(i))
+        .chain(first_object..count)
+        .collect();
+    if elements.len() > k {
+        return;
+    }
+    for (slot, &element) in elements.iter().enumerate() {
+        unsafe { *ids.add(slot) = element as i32 };
+    }
+    log::debug!(target: "dshim::cluster",
+        "keep order: {} of {k} slots seeded, {} of them objects",
+        elements.len(),
+        count - first_object
+    );
+}
+
+/// candidate_filter(count, K, ?, records, weights, ?, state, ...): note the slot element ids
+/// and, with the order kept, seed them (seed_slots);
 /// with quiet objects kept, clear the silence flag of every element whose block is not all zero,
 /// give it a weight when the preprocessor left its column at zero, and lower the threshold when
 /// every record with any weight fits.
@@ -223,6 +291,10 @@ extern "C" fn hook_candidate_filter(
         },
         Ordering::Relaxed,
     );
+    let ids = SLOT_IDS.load(Ordering::Relaxed);
+    if KEEP_ORDER.load(Ordering::Relaxed) != 0 && ids != 0 && recs != 0 {
+        seed_slots(ids, k as u32 as usize, recs, count as u32 as usize);
+    }
     let cell = THRESHOLD_CELL.load(Ordering::Relaxed);
     if cell != 0 && recs != 0 {
         let record_size = RECORD_SIZE;
@@ -490,6 +562,7 @@ pub struct Options {
     pub exact_timing: bool,
     pub keep_quiet: bool,
     pub own_gains: bool,
+    pub keep_order: bool,
 }
 
 type ElementLive = fn(usize) -> Option<bool>;
@@ -528,9 +601,10 @@ pub fn install(
         exact_timing,
         keep_quiet,
         own_gains,
+        keep_order,
     } = options;
     let sites = Sites { res, tool };
-    if !(own_clusters || exact_timing || keep_quiet || own_gains) {
+    if !(own_clusters || exact_timing || keep_quiet || own_gains || keep_order) {
         return false;
     }
     if let Some(f) = element_live {
@@ -564,8 +638,8 @@ pub fn install(
         )
     });
     let activity = exact_timing.then(|| sites.require("exact timing", &["cluster_activity"], log));
-    let filter =
-        (keep_quiet || own_gains).then(|| sites.require("cluster", &["candidate_filter"], log));
+    let filter = (keep_quiet || own_gains || keep_order)
+        .then(|| sites.require("cluster", &["candidate_filter"], log));
     let quiet = keep_quiet.then(|| {
         sites.require(
             "keep quiet",
@@ -680,6 +754,7 @@ pub fn install(
         );
     }
     if let Some(s) = &filter {
+        KEEP_ORDER.store(keep_order as u8, Ordering::Relaxed);
         hook(
             "cluster",
             "candidate_filter",

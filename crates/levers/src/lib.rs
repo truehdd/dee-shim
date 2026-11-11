@@ -30,6 +30,7 @@ pub const KEYS: &[&str] = &[
     "DDPJOC_OAMD_EXACT_TIMING",
     "DDPJOC_OAMD_KEEP_QUIET",
     "DDPJOC_OAMD_OWN_GAINS",
+    "DDPJOC_OAMD_KEEP_ORDER",
     "DDPJOC_OAMD_CLUSTER_PASSTHROUGH",
     "DDPJOC_OAMD_AS_IS",
     "DDPJOC_OAMD_EXT_PRECISION",
@@ -41,6 +42,7 @@ pub const KEYS: &[&str] = &[
     "DTHD_OAMD_EXACT_TIMING",
     "DTHD_OAMD_KEEP_QUIET",
     "DTHD_OAMD_OWN_GAINS",
+    "DTHD_OAMD_KEEP_ORDER",
     "DTHD_OAMD_CLUSTER_PASSTHROUGH",
     "DTHD_OAMD_AS_IS",
     "DTHD_NOISE_SHAPING",
@@ -141,6 +143,7 @@ pub struct Oamd {
     pub exact_timing: Option<bool>,
     pub keep_quiet: Option<bool>,
     pub own_gains: Option<bool>,
+    pub keep_order: Option<bool>,
     pub cluster_passthrough: Option<bool>,
     pub as_is: Option<bool>,
 }
@@ -178,7 +181,11 @@ impl Oamd {
         self.own_gains.unwrap_or(self.cluster_passthrough())
     }
 
-    fn fields(&mut self) -> [(&'static str, &mut Option<bool>); 8] {
+    pub fn keep_order(&self) -> bool {
+        self.keep_order.unwrap_or(self.cluster_passthrough())
+    }
+
+    fn fields(&mut self) -> [(&'static str, &mut Option<bool>); 9] {
         [
             ("OAMD_EXACT_POSITIONS", &mut self.exact_positions),
             ("OAMD_EXACT_SIZES", &mut self.exact_sizes),
@@ -186,6 +193,7 @@ impl Oamd {
             ("OAMD_EXACT_TIMING", &mut self.exact_timing),
             ("OAMD_KEEP_QUIET", &mut self.keep_quiet),
             ("OAMD_OWN_GAINS", &mut self.own_gains),
+            ("OAMD_KEEP_ORDER", &mut self.keep_order),
             ("OAMD_CLUSTER_PASSTHROUGH", &mut self.cluster_passthrough),
             ("OAMD_AS_IS", &mut self.as_is),
         ]
@@ -660,7 +668,7 @@ mod tests {
         assert!(
             o.exact_positions() && o.own_clusters() && o.own_gains() && l.ddpjoc.ext_precision()
         );
-        assert!(!o.keep_quiet());
+        assert!(!o.keep_quiet() && o.keep_order());
         let l = Levers::from_pairs(&map(&[("DTHD_OAMD_CLUSTER_PASSTHROUGH", "on")])).unwrap();
         assert!(l.dthd.oamd.keep_quiet() && !l.dthd.oamd.exact_positions());
         let l = Levers::from_pairs(&map(&[("DTHD_AUDIO_AS_IS", "on")])).unwrap();

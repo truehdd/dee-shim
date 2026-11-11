@@ -36,8 +36,13 @@
 //!                           in a frame that fits, mix each object only into its own cluster; as
 //!                           shipped, an object at the same position as another cluster's object
 //!                           is mixed into that one and its own cluster is frozen, not active.
+//!   DDPJOC_OAMD_KEEP_ORDER=on
+//!                           when the master's elements fit, code them in master order (bed
+//!                           channels other than LFE that sound from the start, then the
+//!                           objects); as shipped, in the order the clusterer first picked
+//!                           them.
 //!   DDPJOC_OAMD_CLUSTER_PASSTHROUGH=on
-//!                           all four above: an already clustered master, such as a TrueHD
+//!                           all five above: an already clustered master, such as a TrueHD
 //!                           decode, is coded as it is.
 //!   DDPJOC_OAMD_EXT_PRECISION=on
 //!                           code positions with OAMD extended precision (element 5, a fifth of a
@@ -200,6 +205,7 @@ pub fn install(res: &Resolver, log: &mut dyn Write) {
         exact_timing: oamd.exact_timing(),
         keep_quiet: oamd.keep_quiet(),
         own_gains: oamd.own_gains(),
+        keep_order: oamd.keep_order(),
     };
 
     // Resolve requested sites before writing.

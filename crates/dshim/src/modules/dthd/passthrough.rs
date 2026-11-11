@@ -11,6 +11,7 @@ pub fn install(res: &Resolver, log: &mut dyn Write) -> bool {
         exact_timing: oamd.exact_timing(),
         keep_quiet: oamd.keep_quiet(),
         own_gains: oamd.own_gains(),
+        keep_order: oamd.keep_order(),
     };
     cluster::install(
         res,
