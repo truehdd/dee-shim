@@ -11,6 +11,9 @@ release notes and refuses to run without it, so write it before running the work
   `--data-rate` with different totals are refused.
 - A native `-e` whose mode differs from the layout's or `--mode` is refused; before, it was
   replaced.
+- `dthd_encoder --oamd-as-is`: an object below DEE's silence threshold now gets its own cluster
+  when the frame fits. Before, it was mixed into a neighbour's cluster and both came back 1 LSB
+  off (#4).
 
 ## v0.1.0
 

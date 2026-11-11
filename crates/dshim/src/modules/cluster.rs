@@ -57,10 +57,13 @@ static FITS: AtomicU8 = AtomicU8::new(0);
 static KEEP_TRAMP: AtomicUsize = AtomicUsize::new(0);
 // Counts for the exit line: selections, fitting selections, frames whose jump controls were
 // zeroed, filter calls with the threshold lowered, gain columns moved, of which set to unity,
-// silence flags cleared, fitting selections folded, gain columns changed.
-static STATS: [AtomicU64; 9] = [const { AtomicU64::new(0) }; 9];
+// silence flags cleared, fitting selections folded, gain columns changed, weights set.
+static STATS: [AtomicU64; 10] = [const { AtomicU64::new(0) }; 10];
 
 const STOCK_THRESHOLD: f32 = 0.5;
+// The weight given to a live element whose block the preprocessor left weightless (its detector
+// called the block silent): at or above the lowered threshold, under the stock one.
+const QUIET_WEIGHT: f32 = 0.25;
 // A moved column's total is the stock snapped gain, min(column sum, 1). The column is a
 // normalised panning distribution, so for an object that owns its cluster the sum is 1 up to
 // float rounding, and a sum one step under 1 scales the samples by 1 - 2^-24: full scale samples
@@ -109,8 +112,8 @@ extern "C" {
 extern "C" fn report() {
     let s: Vec<u64> = STATS.iter().map(|c| c.load(Ordering::Relaxed)).collect();
     log::debug!(target: "dshim::cluster",
-        "cluster: cluster pass-through, selections {}, fitting {}, jump controls zeroed {}, filters relaxed {}, gain columns moved {} (set to unity {}), silence flags cleared {}, fitting selections folded {}, gain columns changed {}",
-        s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8]
+        "cluster: cluster pass-through, selections {}, fitting {}, jump controls zeroed {}, filters relaxed {}, gain columns moved {} (set to unity {}), silence flags cleared {}, fitting selections folded {}, gain columns changed {}, weights set {}",
+        s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8], s[9]
     );
 }
 
@@ -184,13 +187,21 @@ extern "C" fn hook_cluster_activity(
 }
 
 /// candidate_filter(count, K, ?, records, weights, ?, state, ...): note the slot element ids;
-/// with quiet objects kept, clear the silence flag of every element whose block is not all zero
-/// and lower the threshold when every record with any weight fits.
+/// with quiet objects kept, clear the silence flag of every element whose block is not all zero,
+/// give it a weight when the preprocessor left its column at zero, and lower the threshold when
+/// every record with any weight fits.
 ///
 /// The flag is set by the preprocessor's silence detector, which tests a buffer other than the
 /// one the mixer mixes (the preprocessor state's *(state + 192), not *(state + 88)); at dither
 /// level that buffer can be all zero while the mixed block is not. The block is read where the
 /// window left it (overlap.rs), records and elements sharing their index.
+///
+/// The filter admits a candidate by its weight column (word 1 of its record clear and the column
+/// sum at or above the threshold), not by the flag, and the preprocessor leaves the column of a
+/// block its detector called silent at zero. With the flag alone cleared such an element gets no
+/// cluster, and the gain builder, which does honour the flag, pans it into the clusters near it:
+/// at an onset from digital silence the object and its neighbour come out 1 LSB off, and an
+/// object held under the detector's threshold is carried in its neighbours' clusters.
 #[allow(clippy::too_many_arguments)]
 extern "C" fn hook_candidate_filter(
     count: usize,
@@ -215,11 +226,30 @@ extern "C" fn hook_candidate_filter(
     let cell = THRESHOLD_CELL.load(Ordering::Relaxed);
     if cell != 0 && recs != 0 {
         let record_size = RECORD_SIZE;
+        let (rows, cols, w) = if weights != 0 {
+            unsafe {
+                (
+                    *(weights as *const u32) as usize,
+                    *((weights + 4) as *const u32) as usize,
+                    *((weights + 8) as *const *mut f32),
+                )
+            }
+        } else {
+            (0, 0, std::ptr::null_mut())
+        };
         for i in 0..count as u32 as usize {
+            if ELEMENT_LIVE.get().and_then(|f| f(i)) != Some(true) {
+                continue;
+            }
             let flag = (recs + record_size * i + RECORD_SILENT) as *mut u32;
-            if unsafe { *flag } != 0 && ELEMENT_LIVE.get().and_then(|f| f(i)) == Some(true) {
+            if unsafe { *flag } != 0 {
                 unsafe { *flag = 0 };
                 bump(6);
+            }
+            let excluded = unsafe { *((recs + record_size * i + RECORD_FLAG) as *const u32) } != 0;
+            if i < cols && !excluded && (0..rows).all(|r| unsafe { *w.add(r * cols + i) } == 0.0) {
+                unsafe { *w.add(i) = QUIET_WEIGHT };
+                bump(9);
             }
         }
     }
