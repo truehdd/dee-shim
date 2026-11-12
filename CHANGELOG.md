@@ -24,6 +24,9 @@ release notes and refuses to run without it, so write it before running the work
   keeps DEE's timing.
 - `dthd_encoder --as-is`: the stream ends at the master's last sample. Before, DEE padded the
   master with silence to a whole 512-sample block. `--audio-exact-length off` keeps DEE's end.
+- A DEE URI such as `named_pipe://...` given to `-i`, `-o` or another file option is passed
+  through unchanged, also inside a `wav_list`. Before, the caller's directory was put in front
+  of it and DEE could not open it.
 
 ## v0.1.0
 

@@ -2,23 +2,43 @@
 
 use std::path::Path;
 
+/// A URI scheme such as DEE's `named_pipe`; a single letter is a drive.
+fn scheme(name: &str) -> bool {
+    name.len() > 1
+        && name.as_bytes()[0].is_ascii_alphabetic()
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'+' | b'.' | b'-'))
+}
+
+/// A DEE URI such as `named_pipe://...`, which is not a path.
+fn uri(value: &str) -> bool {
+    value
+        .split_once("://")
+        .is_some_and(|(name, _)| scheme(name))
+}
+
 pub fn absolute(path: &str, cwd: &Path) -> String {
-    if path == "-" || path.is_empty() || Path::new(path).is_absolute() {
+    if path == "-" || path.is_empty() || uri(path) || Path::new(path).is_absolute() {
         path.to_owned()
     } else {
         cwd.join(path).to_string_lossy().into_owned()
     }
 }
 
-/// The entries of a wav_list value; a drive letter's colon does not split.
+/// The entries of a wav_list value; the colon of a drive or a URI scheme does not split.
 fn split_list(value: &str) -> Vec<&str> {
     let mut paths = Vec::new();
     let mut start = 0;
     for (index, byte) in value.bytes().enumerate() {
+        if byte != b':' {
+            continue;
+        }
         let drive = index == start + 1
             && value.as_bytes()[start].is_ascii_alphabetic()
             && matches!(value.as_bytes().get(index + 1), Some(b'/' | b'\\'));
-        if byte == b':' && !drive {
+        let uri = value[index..].starts_with("://") && scheme(&value[start..index]);
+        if !drive && !uri {
             paths.push(&value[start..index]);
             start = index + 1;
         }
@@ -187,6 +207,26 @@ mod tests {
             )
         );
         assert_eq!(super::absolute("-", &cwd), "-");
+    }
+
+    #[test]
+    fn dee_uris_are_not_paths() {
+        let cwd = std::env::current_dir().unwrap().join("caller");
+        let pipe = r"named_pipe://\\.\pipe\feed";
+        let mut arguments = vec![
+            "-f".into(),
+            "wav_list".into(),
+            "-i".into(),
+            format!("{pipe}:-:left.wav"),
+            "--output=named_pipe:///tmp/out".into(),
+        ];
+        native(&mut arguments, &cwd);
+        assert_eq!(
+            arguments[3],
+            format!("{pipe}:-:{}", cwd.join("left.wav").display())
+        );
+        assert_eq!(arguments[4], "--output=named_pipe:///tmp/out");
+        assert!(!uri("C://x") && !uri("dir/a://b"));
     }
 
     #[test]
