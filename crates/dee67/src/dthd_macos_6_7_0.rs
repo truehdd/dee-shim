@@ -13,6 +13,48 @@ pub static PROFILE: Profile = Profile {
 
 pub static SITES: &[Site] = &[
     Site {
+        name: "dthd.oa.preprocess",
+        va: 0x1000B91C0,
+        kind: Kind::Hook { steal: 12 },
+        expect: "55 48 89 e5 41 57 41 56 41 55 41 54",
+        note: "Preprocessor frame entry: the master's metadata events with their sample times.",
+    },
+    Site {
+        name: "dthd.oa.emit_frame",
+        va: 0x1000B6FA0,
+        kind: Kind::Hook { steal: 16 },
+        expect: "55 48 89 e5 41 57 41 56 53 48 81 ec f8 00 00 00",
+        note: "Mezzanine metadata writer, one call per coded frame.",
+    },
+    Site {
+        name: "dthd.oa.write_frame",
+        va: 0x1000B9DC0,
+        kind: Kind::Hook { steal: 17 },
+        expect: "55 48 89 e5 41 57 41 56 41 55 41 54 53 48 83 ec 18",
+        note: "Writes a frame's metadata payload into its access unit, then the frame's other units without one.",
+    },
+    Site {
+        name: "dthd.oa.convert_events",
+        va: 0x1000F8450,
+        kind: Kind::Data,
+        expect: "55 48 89 e5 41 57 41 56 53 48 81 ec a8 00 00 00",
+        note: "Fills the payload's object records from a frame's events.",
+    },
+    Site {
+        name: "dthd.oa.serialize",
+        va: 0x1000F87E0,
+        kind: Kind::Data,
+        expect: "55 48 89 e5 48 83 ec 20 48 89 f0 0f 57 c0",
+        note: "Serializes the payload into the writer's buffer and returns its size.",
+    },
+    Site {
+        name: "dthd.oa.frame_offset",
+        va: 0x1000F82F0,
+        kind: Kind::Data,
+        expect: "55 48 89 e5 41 57 41 56 53 48 83 ec 58",
+        note: "Sets the payload's sample offset and block offset.",
+    },
+    Site {
         name: "dthd.sc.merge_half",
         va: 0x100d5b010,
         kind: Kind::Data,

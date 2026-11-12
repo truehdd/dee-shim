@@ -45,6 +45,7 @@ pub const KEYS: &[&str] = &[
     "DTHD_OAMD_KEEP_ORDER",
     "DTHD_OAMD_CLUSTER_PASSTHROUGH",
     "DTHD_OAMD_AS_IS",
+    "DTHD_OAMD_UPDATE_TIMES",
     "DTHD_NOISE_SHAPING",
     "DTHD_APODISE",
     "DTHD_AUDIO_UNIT_SCALE",
@@ -288,6 +289,7 @@ impl DthdDrc {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Dthd {
     pub oamd: Oamd,
+    pub oamd_update_times: Option<bool>,
     pub noise_shaping: Option<bool>,
     pub apodise: Option<bool>,
     pub audio_unit_scale: Option<bool>,
@@ -306,6 +308,12 @@ pub struct Dthd {
 }
 
 impl Dthd {
+    /// Each frame's update coded at its sample in the master; follows the cluster pass-through.
+    pub fn oamd_update_times(&self) -> bool {
+        self.oamd_update_times
+            .unwrap_or(self.oamd.cluster_passthrough())
+    }
+
     pub fn audio_as_is(&self) -> bool {
         self.audio_as_is.unwrap_or(false)
     }
@@ -438,6 +446,7 @@ impl Levers {
             "DDPJOC_PHASE90" => j.phase90 = Some(switch(key, v)?),
             "DDPJOC_OAMD_EXT_PRECISION" => j.ext_precision = Some(switch(key, v)?),
             "DDPJOC_RATE_GATE_OFF" => j.rate_gate_off = flag(key, v)?,
+            "DTHD_OAMD_UPDATE_TIMES" => t.oamd_update_times = Some(switch(key, v)?),
             "DTHD_NOISE_SHAPING" => t.noise_shaping = Some(switch(key, v)?),
             "DTHD_APODISE" => t.apodise = Some(switch(key, v)?),
             "DTHD_AUDIO_UNIT_SCALE" => t.audio_unit_scale = Some(switch(key, v)?),
@@ -513,6 +522,7 @@ impl Levers {
         for (n, s) in t.oamd.clone().fields() {
             put(oamd_key("DTHD", n), sw(*s));
         }
+        put("DTHD_OAMD_UPDATE_TIMES", sw(t.oamd_update_times));
         put("DTHD_NOISE_SHAPING", sw(t.noise_shaping));
         put("DTHD_APODISE", sw(t.apodise));
         put("DTHD_AUDIO_UNIT_SCALE", sw(t.audio_unit_scale));

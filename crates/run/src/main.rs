@@ -349,6 +349,17 @@ struct DthdArgs {
     #[command(flatten)]
     oamd: Oamd,
 
+    /// Code each frame's update at its sample in the master, with its ramp
+    ///
+    /// DEE codes it at the start of its 1536-sample frame with a 1536-sample ramp
+    #[arg(
+        long,
+        value_name = "on|off",
+        hide = true,
+        help_heading = "Object metadata"
+    )]
+    oamd_update_times: Option<Switch>,
+
     /// Requantise every channel to 20 bits with a shaped dither
     ///
     /// Unset keeps DEE's choice: on for Atmos, off for channel input
@@ -614,6 +625,7 @@ impl Tool {
                     env,
                     "DTHD",
                     &[
+                        (a.oamd_update_times, "OAMD_UPDATE_TIMES"),
                         (a.noise_shaping, "NOISE_SHAPING"),
                         (a.apodise, "APODISE"),
                         (a.audio_unit_scale, "AUDIO_UNIT_SCALE"),

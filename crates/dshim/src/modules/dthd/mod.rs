@@ -15,6 +15,7 @@ pub mod passthrough;
 pub mod presentations;
 pub mod rate;
 pub mod smoothing;
+pub mod timing;
 
 /// In this order: keep quiet reads the element blocks the overlap module hooks. highres, mll,
 /// compose and rate are independent (an authoring gate, the full job redirect, the
@@ -29,4 +30,5 @@ pub fn run_all(res: &Resolver, log: &mut dyn Write) {
     compose::install(res, log);
     rate::install(res, log);
     presentations::install(res, log);
+    timing::install(res, log);
 }

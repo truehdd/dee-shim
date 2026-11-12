@@ -18,6 +18,9 @@ release notes and refuses to run without it, so write it before running the work
   in master order: bed channels other than LFE that sound from the start, then the objects.
   Before, the order was the one DEE's clusterer first picked them in. `--oamd-keep-order off`
   keeps DEE's order.
+- `dthd_encoder --oamd-as-is`: each frame's position update is coded at its sample in the
+  master, with its ramp. Before, DEE moved it to the start of its 1536-sample frame, up to
+  32 ms early, with a 1536-sample ramp (#3). `--oamd-update-times off` keeps DEE's timing.
 
 ## v0.1.0
 
