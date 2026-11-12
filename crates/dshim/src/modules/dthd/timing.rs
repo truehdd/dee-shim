@@ -85,19 +85,12 @@ fn read(e: &Event, at: usize, len: usize) -> u64 {
     u64::from_le_bytes(b)
 }
 
-/// Lead and ramp of the payload of the frame of `size` samples at `start`: at the frame's update
-/// (time, ramp), or without one at the last update's phase (phase, ramp). The payload goes out
-/// in the access unit the frame starts in, and the next frame's in the unit the next frame
-/// starts in, so it is held to start before that.
-fn timing(
-    start: u64,
-    size: u64,
-    update: Option<(u64, u64)>,
-    last: Option<(u64, u64)>,
-) -> Option<(u64, u64)> {
+/// Lead and ramp of the payload of the frame at `start`: at the frame's update (time, ramp), or
+/// without one at the last update's phase (phase, ramp), after the start of the access unit the
+/// frame starts in. Dolby's decoder applies a payload at its time, even after the next frame's.
+fn timing(start: u64, update: Option<(u64, u64)>, last: Option<(u64, u64)>) -> Option<(u64, u64)> {
     let (time, ramp) = update.or(last.map(|(phase, ramp)| (start + phase, ramp)))?;
-    let next = (start + size) / UNIT * UNIT;
-    Some((time.min(next - 1) - start / UNIT * UNIT, ramp.min(MAX_RAMP)))
+    Some((time - start / UNIT * UNIT, ramp.min(MAX_RAMP)))
 }
 
 /// Of a frame's updates, the one that moves the most elements, the later one on a tie: the payload
@@ -137,7 +130,7 @@ extern "C" fn emit(this: usize, frame: usize, il: usize) {
         let start = unsafe { *((emitter + at::POSITION) as *const u64) };
         let later = s.updates.split_off(&(start + size));
         let update = pick(std::mem::replace(&mut s.updates, later).range(start..));
-        let Some((lead, ramp)) = timing(start, size, update, s.last) else {
+        let Some((lead, ramp)) = timing(start, update, s.last) else {
             return;
         };
         if let Some((time, ramp)) = update {
@@ -238,14 +231,11 @@ mod tests {
     #[test]
     fn payload_starts_at_the_update() {
         // Frame at 1536 (its unit starts at 1520): an update at phase 1112 with ramp 0.
-        assert_eq!(timing(1536, 1536, Some((2648, 0)), None), Some((1128, 0)));
-        // An update after the next frame's unit starts is held to just before it.
-        assert_eq!(timing(1536, 1536, Some((3070, 0)), None), Some((1519, 0)));
+        assert_eq!(timing(1536, Some((2648, 0)), None), Some((1128, 0)));
+        // An update after the next frame's unit starts keeps its sample.
+        assert_eq!(timing(1536, Some((3070, 0)), None), Some((1550, 0)));
         // No update: the last update's phase and ramp.
-        assert_eq!(
-            timing(3072, 1536, None, Some((1112, 1536))),
-            Some((1144, 1536))
-        );
+        assert_eq!(timing(3072, None, Some((1112, 1536))), Some((1144, 1536)));
     }
 
     #[test]
