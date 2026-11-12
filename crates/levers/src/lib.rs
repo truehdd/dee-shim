@@ -50,6 +50,7 @@ pub const KEYS: &[&str] = &[
     "DTHD_APODISE",
     "DTHD_AUDIO_UNIT_SCALE",
     "DTHD_AUDIO_EXACT_OVERLAP",
+    "DTHD_AUDIO_EXACT_LENGTH",
     "DTHD_AUDIO_AS_IS",
     "DTHD_DRC",
     "DTHD_HIGHRES",
@@ -294,6 +295,7 @@ pub struct Dthd {
     pub apodise: Option<bool>,
     pub audio_unit_scale: Option<bool>,
     pub audio_exact_overlap: Option<bool>,
+    pub audio_exact_length: Option<bool>,
     pub audio_as_is: Option<bool>,
     pub drc: Option<DthdDrc>,
     pub highres: Option<bool>,
@@ -334,6 +336,10 @@ impl Dthd {
 
     pub fn audio_exact_overlap(&self) -> bool {
         self.audio_exact_overlap.unwrap_or(self.audio_as_is())
+    }
+
+    pub fn audio_exact_length(&self) -> bool {
+        self.audio_exact_length.unwrap_or(self.audio_as_is())
     }
 
     /// The high-rate gates: on with DTHD_HIGHRES, or with the non-conformant target unless
@@ -451,6 +457,7 @@ impl Levers {
             "DTHD_APODISE" => t.apodise = Some(switch(key, v)?),
             "DTHD_AUDIO_UNIT_SCALE" => t.audio_unit_scale = Some(switch(key, v)?),
             "DTHD_AUDIO_EXACT_OVERLAP" => t.audio_exact_overlap = Some(switch(key, v)?),
+            "DTHD_AUDIO_EXACT_LENGTH" => t.audio_exact_length = Some(switch(key, v)?),
             "DTHD_AUDIO_AS_IS" => t.audio_as_is = Some(switch(key, v)?),
             "DTHD_DRC" => t.drc = Some(DthdDrc::parse(key, v)?),
             "DTHD_HIGHRES" => t.highres = Some(switch(key, v)?),
@@ -527,6 +534,7 @@ impl Levers {
         put("DTHD_APODISE", sw(t.apodise));
         put("DTHD_AUDIO_UNIT_SCALE", sw(t.audio_unit_scale));
         put("DTHD_AUDIO_EXACT_OVERLAP", sw(t.audio_exact_overlap));
+        put("DTHD_AUDIO_EXACT_LENGTH", sw(t.audio_exact_length));
         put("DTHD_AUDIO_AS_IS", sw(t.audio_as_is));
         put("DTHD_DRC", t.drc.as_ref().map(DthdDrc::text));
         put("DTHD_HIGHRES", sw(t.highres));

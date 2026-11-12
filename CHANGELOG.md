@@ -21,6 +21,8 @@ release notes and refuses to run without it, so write it before running the work
 - `dthd_encoder --oamd-as-is`: each frame's position update is coded at its sample in the
   master, with its ramp. Before, DEE moved it to the start of its 1536-sample frame, up to
   32 ms early, with a 1536-sample ramp (#3). `--oamd-update-times off` keeps DEE's timing.
+- `dthd_encoder --as-is`: the stream ends at the master's last sample. Before, DEE padded the
+  master with silence to a whole 512-sample block. `--audio-exact-length off` keeps DEE's end.
 
 ## v0.1.0
 

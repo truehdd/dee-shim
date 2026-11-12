@@ -9,6 +9,7 @@ pub mod compose;
 pub mod drc;
 pub mod highres;
 pub mod layout;
+pub mod length;
 pub mod mll;
 pub mod overlap;
 pub mod passthrough;
@@ -31,4 +32,5 @@ pub fn run_all(res: &Resolver, log: &mut dyn Write) {
     rate::install(res, log);
     presentations::install(res, log);
     timing::install(res, log);
+    length::install(res, log);
 }

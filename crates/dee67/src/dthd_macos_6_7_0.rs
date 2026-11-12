@@ -34,6 +34,27 @@ pub static SITES: &[Site] = &[
         note: "Writes a frame's metadata payload into its access unit, then the frame's other units without one.",
     },
     Site {
+        name: "dthd.reader.open",
+        va: 0x1000E97C0,
+        kind: Kind::Hook { steal: 12 },
+        expect: "55 48 89 e5 41 57 41 56 41 55 41 54",
+        note: "Atmos reader constructor: opens the master's range and pads its count to a whole frame.",
+    },
+    Site {
+        name: "dthd.storage.sample_count",
+        va: 0x10029A040,
+        kind: Kind::Data,
+        expect: "55 48 89 e5 48 8b 07 ff 50 68 5d c3",
+        note: "atmos_storage_get_sample_count: the samples in the encode range, with added silence.",
+    },
+    Site {
+        name: "dthd.core.read_audio",
+        va: 0x100B4D3D0,
+        kind: Kind::Hook { steal: 17 },
+        expect: "55 48 89 e5 41 57 41 56 41 55 41 54 53 48 83 ec 68",
+        note: "TrueHD encoder's audio supply; its end flag ends the stream.",
+    },
+    Site {
         name: "dthd.oa.convert_events",
         va: 0x1000F8450,
         kind: Kind::Data,

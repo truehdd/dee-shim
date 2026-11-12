@@ -12,6 +12,27 @@ pub static PROFILE: Profile = Profile {
 
 static SITES: &[Site] = &[
     Site {
+        name: "dthd.reader.open",
+        va: 0x140443A80,
+        kind: Kind::Hook { steal: 12 },
+        expect: "48 89 5c 24 18 55 56 57 48 83 ec 60",
+        note: "Atmos reader constructor: opens the master's range and pads its count to a whole frame.",
+    },
+    Site {
+        name: "dthd.storage.sample_count",
+        va: 0x140516200,
+        kind: Kind::Data,
+        expect: "48 83 ec 28 48 8b 01 ff 50 60 eb 02 33 c0",
+        note: "The storage's sample count: the samples in the encode range, with added silence.",
+    },
+    Site {
+        name: "dthd.core.read_audio",
+        va: 0x140A42810,
+        kind: Kind::Hook { steal: 14 },
+        expect: "48 8b c4 4c 89 40 18 48 89 48 08 55 56 57",
+        note: "TrueHD encoder's audio supply; its end flag ends the stream.",
+    },
+    Site {
         name: "dthd.sc.merge_half",
         va: 0x14142a00c,
         kind: Kind::Data,

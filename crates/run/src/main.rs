@@ -409,8 +409,21 @@ struct DthdArgs {
     )]
     audio_exact_overlap: Option<Switch>,
 
+    /// End the stream at the master's last sample
+    ///
+    /// DEE pads the master to a whole 512-sample block
+    #[arg(
+        long,
+        value_name = "on|off",
+        hide_possible_values = true,
+        hide = true,
+        help_heading = "Audio"
+    )]
+    audio_exact_length: Option<Switch>,
+
     /// Code the audio as it was read: noise shaping and apodising off, PCM at the scale it was
-    /// read at, and a lone object's samples kept exact where blocks overlap
+    /// read at, a lone object's samples kept exact where blocks overlap, and the stream ended
+    /// at the master's last sample
     ///
     /// --noise-shaping or --apodise given with it wins
     #[arg(
@@ -630,6 +643,7 @@ impl Tool {
                         (a.apodise, "APODISE"),
                         (a.audio_unit_scale, "AUDIO_UNIT_SCALE"),
                         (a.audio_exact_overlap, "AUDIO_EXACT_OVERLAP"),
+                        (a.audio_exact_length, "AUDIO_EXACT_LENGTH"),
                         (a.as_is, "AUDIO_AS_IS"),
                         (a.highres, "HIGHRES"),
                     ],
