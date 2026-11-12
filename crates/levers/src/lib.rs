@@ -34,6 +34,7 @@ pub const KEYS: &[&str] = &[
     "DDPJOC_OAMD_CLUSTER_PASSTHROUGH",
     "DDPJOC_OAMD_AS_IS",
     "DDPJOC_OAMD_EXT_PRECISION",
+    "DDPJOC_OAMD_UPDATE_TIMES",
     "DDPJOC_RATE_GATE_OFF",
     // dee_dthd_encoder
     "DTHD_OAMD_EXACT_POSITIONS",
@@ -234,6 +235,7 @@ pub struct Ddpjoc {
     pub oamd: Oamd,
     /// Extended OAMD position precision; defaults to the as is umbrella.
     pub ext_precision: Option<bool>,
+    pub oamd_update_times: Option<bool>,
     /// Remove the Atmos data-rate policy gate.
     pub rate_gate_off: bool,
 }
@@ -241,6 +243,12 @@ pub struct Ddpjoc {
 impl Ddpjoc {
     pub fn ext_precision(&self) -> bool {
         self.ext_precision.unwrap_or(self.oamd.as_is())
+    }
+
+    /// Each frame's update coded at its sample in the master; follows the cluster pass-through.
+    pub fn oamd_update_times(&self) -> bool {
+        self.oamd_update_times
+            .unwrap_or(self.oamd.cluster_passthrough())
     }
 }
 
@@ -451,6 +459,7 @@ impl Levers {
             "DDPJOC_RATES" => j.rates = Some(rates(key, v)?),
             "DDPJOC_PHASE90" => j.phase90 = Some(switch(key, v)?),
             "DDPJOC_OAMD_EXT_PRECISION" => j.ext_precision = Some(switch(key, v)?),
+            "DDPJOC_OAMD_UPDATE_TIMES" => j.oamd_update_times = Some(switch(key, v)?),
             "DDPJOC_RATE_GATE_OFF" => j.rate_gate_off = flag(key, v)?,
             "DTHD_OAMD_UPDATE_TIMES" => t.oamd_update_times = Some(switch(key, v)?),
             "DTHD_NOISE_SHAPING" => t.noise_shaping = Some(switch(key, v)?),
@@ -525,6 +534,7 @@ impl Levers {
             put(oamd_key("DDPJOC", n), sw(*s));
         }
         put("DDPJOC_OAMD_EXT_PRECISION", sw(j.ext_precision));
+        put("DDPJOC_OAMD_UPDATE_TIMES", sw(j.oamd_update_times));
         put("DDPJOC_RATE_GATE_OFF", fl(j.rate_gate_off));
         for (n, s) in t.oamd.clone().fields() {
             put(oamd_key("DTHD", n), sw(*s));

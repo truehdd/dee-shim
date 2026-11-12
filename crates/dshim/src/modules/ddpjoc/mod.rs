@@ -20,6 +20,7 @@ pub fn run_all(res: &Resolver, log: &mut dyn Write) {
         apply_patch(res, "ddpjoc.rate.online_max", log);
     }
     features::install(res, log);
+    super::timing::install_ddpjoc(res, log);
 }
 
 /// Write a Patch site's `new` bytes at its resolved, byte-checked address.

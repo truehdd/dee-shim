@@ -12,6 +12,27 @@ pub static PROFILE: Profile = Profile {
 
 static SITES: &[Site] = &[
     Site {
+        name: "ddpjoc.oa.presample",
+        va: 0x10012E760,
+        kind: Kind::Hook { steal: 15 },
+        expect: "55 48 89 e5 41 57 41 56 41 54 53 48 83 ec 60",
+        note: "AtmosMetadataPresampler: moves each element's events in a 512-sample block to its start.",
+    },
+    Site {
+        name: "ddpjoc.oa.emit_frame",
+        va: 0x10011F580,
+        kind: Kind::Hook { steal: 18 },
+        expect: "55 48 89 e5 41 57 41 56 41 54 53 48 81 ec f0 00 00 00",
+        note: "Metadata writer, one call per coded frame.",
+    },
+    Site {
+        name: "ddpjoc.oa.payload_offset",
+        va: 0x100141A90,
+        kind: Kind::Hook { steal: 13 },
+        expect: "55 48 89 e5 49 89 d0 48 8b 06 48 8b 0a",
+        note: "Splits the frame's position into the payload's block offset and sample offset.",
+    },
+    Site {
         name: "ddpjoc.rate.online_max",
         va: 0x100188228,
         kind: Kind::Patch { new: "66 90" },

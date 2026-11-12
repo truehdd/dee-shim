@@ -321,6 +321,17 @@ struct DdpjocArgs {
     )]
     oamd_ext_precision: Option<Switch>,
 
+    /// Code each frame's update at its sample in the master, with its ramp
+    ///
+    /// DEE codes it at the start of its 1536-sample frame with a 1536-sample ramp
+    #[arg(
+        long,
+        value_name = "on|off",
+        hide = true,
+        help_heading = "Object metadata"
+    )]
+    oamd_update_times: Option<Switch>,
+
     #[command(flatten)]
     oamd: Oamd,
     #[command(flatten)]
@@ -628,6 +639,7 @@ impl Tool {
                     &[
                         (a.phase90, "PHASE90"),
                         (a.oamd_ext_precision, "OAMD_EXT_PRECISION"),
+                        (a.oamd_update_times, "OAMD_UPDATE_TIMES"),
                     ],
                 );
                 a.oamd.put(env, "DDPJOC");

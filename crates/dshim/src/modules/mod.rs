@@ -9,6 +9,8 @@
 #[cfg(any(feature = "dthd", feature = "ddpjoc"))]
 mod cluster;
 pub mod common;
+#[cfg(any(feature = "dthd", feature = "ddpjoc"))]
+mod timing;
 
 // Each tool's module compiles only when its cargo feature is on (all on by default). A build can
 // drop a tool with `--no-default-features --features <tools>`.
