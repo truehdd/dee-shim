@@ -3,7 +3,7 @@
 Each release has a section headed by its tag. The release workflow publishes that section as the
 release notes and refuses to run without it, so write it before running the workflow.
 
-## Unreleased
+## v0.2.1
 
 - `ddpjoc_encoder` and `dthd_encoder` on Windows: a zero-fill in DEE that AMD Zen 3 runs about
   45 times slower than Intel is replaced on every run, with the same result. Before, both
