@@ -13,6 +13,38 @@ pub fn layout_values(tool: &str) -> PossibleValuesParser {
     )
 }
 
+/// The layouts dee_measure_loudness takes itself: name, channels, result type.
+pub const METER_NATIVE: [(&str, &str, &str); 3] = [
+    ("1.0", "C", "mono"),
+    ("2.0", "L R", "stereo"),
+    ("5.1", "L R C LFE Ls Rs", "multichannel_5_1"),
+];
+
+/// Every measure_loudness layout in channel order: name, channels, result type, DEE's own.
+pub fn meter_table() -> Vec<(&'static str, &'static str, String, bool)> {
+    let mut rows: Vec<_> = METER_NATIVE
+        .iter()
+        .map(|(name, slots, reported)| (*name, *slots, reported.to_string(), true))
+        .collect();
+    for layout in dshim_levers::MeterLayout::ALL {
+        let reported = match layout.config() {
+            Some(_) => "multichannel_5_1".to_string(),
+            None => format!("multichannel_{}", layout.name().replace('.', "_")),
+        };
+        rows.push((layout.name(), layout.slots(), reported, false));
+    }
+    rows.sort_by_key(|row| row.1.split(' ').count());
+    rows
+}
+
+pub fn meter_layouts() -> PossibleValuesParser {
+    PossibleValuesParser::new(
+        meter_table()
+            .into_iter()
+            .map(|row| PossibleValue::new(row.0)),
+    )
+}
+
 pub fn layout_arg(arg: Arg, tool: &str) -> Arg {
     let description = if tool == "dee_ddpjoc_encoder" {
         "Coded backbone: 5.1 streaming, or an extended layout (see --list)"
@@ -231,3 +263,23 @@ When every object with any weight fits, let the quiet ones (weight under 0.5, ab
 reach the clusterer, and mix every object whose block is not all zero. DEE gives a quiet object \
 a leftover position, and leaves out of the mix a block it judges silent, which drops objects at \
 dither level";
+
+pub const LOUDNESS_HELP: &str = "\
+Measure loudness (dee_measure_loudness).
+
+Give DEE's own arguments after --. DEE takes 1.0, 2.0 and 5.1 input; its meter also has the
+other layouts of --list, which --layout opens for an input with that many channels:
+  dee_shim measure_loudness --layout 7.1 -- --input-format wav -i in.wav \\
+      --output-manifest out.json
+1.0, 2.0 and 5.1 are DEE's own, and --layout changes nothing for them.
+
+LAYOUT
+  The meter reads the layout from the channel order, whatever the WAV's channel mask says.
+  The front channels weigh 1.0, the LFE 0, the two surrounds after it 1.41 (a lone S too) and
+  every later channel 1.0, as in BS.1770; speech gating listens to C where there is one.
+  DEE's result has no name for a layout without LFE, so 3.0 to 5.0 are reported as
+  multichannel_5_1, with one peak per input channel.
+  With one of the other layouts, an input of another channel count is refused, 5.1 too; mono
+  and stereo are still measured as themselves. Two layouts of one channel count (4.0 and
+  4.0-quad, 3.0 and 3.0-back) cannot be told apart from the input: the meter takes the one
+  named, and the wrong name gives a wrong figure without a message.";

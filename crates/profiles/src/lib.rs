@@ -28,6 +28,12 @@ pub static ALL: &[&Profile] = &[
     &dshim_dee67::dthd_linux_port_6_7_0::PROFILE,
     #[cfg(all(feature = "dthd", feature = "dee_6_7"))]
     &dshim_dee67::dthd_windows_6_7_0::PROFILE,
+    #[cfg(all(feature = "loudness", feature = "dee_6_7"))]
+    &dshim_dee67::loudness_linux_6_7_0::PROFILE,
+    #[cfg(all(feature = "loudness", feature = "dee_6_7"))]
+    &dshim_dee67::loudness_macos_6_7_0::PROFILE,
+    #[cfg(all(feature = "loudness", feature = "dee_6_7"))]
+    &dshim_dee67::loudness_windows_6_7_0::PROFILE,
 ];
 
 /// The profile whose identity matches `key` (normalised hex, see `Ident::key`).

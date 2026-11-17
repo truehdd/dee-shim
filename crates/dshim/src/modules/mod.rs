@@ -1,5 +1,5 @@
 //! Modules: the controls, grouped by the tool they target. Each tool is a submodule (`ddp`,
-//! `ddpjoc`, `dthd`); within it, one file per capability. A module is `fn install(res, log)`,
+//! `ddpjoc`, `dthd`, `loudness`); within it, one file per capability. A module is `fn install(res, log)`,
 //! gated on its levers (`crate::levers()`), that asks the resolver for sites by name. A site
 //! missing from the matched profile makes that capability skip with a logged note, never a
 //! crash, so running every tool's modules against whatever binary is hosted is safe.
@@ -20,6 +20,8 @@ pub mod ddp;
 pub mod ddpjoc;
 #[cfg(feature = "dthd")]
 pub mod dthd;
+#[cfg(feature = "loudness")]
+pub mod loudness;
 
 use crate::site::Resolver;
 use std::io::Write;
@@ -33,8 +35,15 @@ pub fn run_all(res: &Resolver, log: &mut dyn Write) {
     ddpjoc::run_all(res, log);
     #[cfg(feature = "dthd")]
     dthd::run_all(res, log);
+    #[cfg(feature = "loudness")]
+    loudness::run_all(res, log);
     // Silence unused-param warnings when no tool feature is enabled.
-    #[cfg(not(any(feature = "ddp", feature = "ddpjoc", feature = "dthd")))]
+    #[cfg(not(any(
+        feature = "ddp",
+        feature = "ddpjoc",
+        feature = "dthd",
+        feature = "loudness"
+    )))]
     {
         let _ = (res, log);
     }

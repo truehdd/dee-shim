@@ -19,7 +19,7 @@ mod help;
 mod host;
 mod paths;
 mod preflight;
-use help::{DDPJOC_HELP, DDP_HELP, DTHD_HELP, DTHD_KEEP_QUIET};
+use help::{DDPJOC_HELP, DDP_HELP, DTHD_HELP, DTHD_KEEP_QUIET, LOUDNESS_HELP};
 
 #[derive(Parser)]
 #[command(
@@ -71,6 +71,10 @@ enum Tool {
     #[command(long_about = DTHD_HELP, arg_required_else_help = true)]
     #[command(mut_arg("oamd_keep_quiet", |a| a.long_help(DTHD_KEEP_QUIET)))]
     Dthd(DthdArgs),
+    /// Measure loudness (dee_measure_loudness)
+    #[command(name = "measure_loudness")]
+    #[command(long_about = LOUDNESS_HELP, arg_required_else_help = true)]
+    Loudness(LoudnessArgs),
 }
 
 mod mll;
@@ -502,6 +506,40 @@ struct DthdArgs {
     run: Runner,
 }
 
+#[derive(Args)]
+struct LoudnessArgs {
+    /// Channel layout of the input, by name (see --list)
+    ///
+    /// Opens a layout the meter has but DEE refuses; 1.0, 2.0 and 5.1 are DEE's own
+    #[arg(long, value_name = "NAME", value_parser = help::meter_layouts(), help_heading = "Layout")]
+    layout: Option<String>,
+
+    /// List the layouts, then exit
+    #[arg(long, help_heading = "Layout")]
+    list: bool,
+
+    #[command(flatten)]
+    run: Runner,
+}
+
+/// Print `measure_loudness --list`: each layout's input channels and how the result is named.
+fn loudness_list() {
+    let rows = help::meter_table();
+    println!("layouts for measure_loudness (input channels in order):");
+    let width = rows.iter().map(|r| r.0.len()).max().unwrap_or(0);
+    let cells = rows.iter().map(|r| r.1.len()).max().unwrap_or(0);
+    let named = rows.iter().map(|r| r.2.len()).max().unwrap_or(0);
+    println!(
+        "  {:<width$} {:<cells$} {:<named$} note",
+        "layout", "channels", "reported as"
+    );
+    for (name, slots, reported, native) in rows {
+        let note = if native { "DEE's own" } else { "" };
+        let line = format!("  {name:<width$} {slots:<cells$} {reported:<named$} {note}");
+        println!("{}", line.trim_end());
+    }
+}
+
 /// Check a dthd --target value.
 fn dthd_target(v: &str) -> Result<String, String> {
     match v {
@@ -586,6 +624,7 @@ impl Tool {
             Tool::Ddp(_) => "dee_ddp_encoder",
             Tool::Ddpjoc(_) => "dee_ddpjoc_encoder",
             Tool::Dthd(_) => "dee_dthd_encoder",
+            Tool::Loudness(_) => "dee_measure_loudness",
         }
     }
 
@@ -594,6 +633,7 @@ impl Tool {
             Tool::Ddp(_) => "ddp_encoder",
             Tool::Ddpjoc(_) => "ddpjoc_encoder",
             Tool::Dthd(_) => "dthd_encoder",
+            Tool::Loudness(_) => "measure_loudness",
         }
     }
 
@@ -601,7 +641,7 @@ impl Tool {
         match self {
             Tool::Ddp(a) => Some(&a.recipe),
             Tool::Ddpjoc(a) => Some(&a.recipe),
-            Tool::Dthd(_) => None,
+            Tool::Dthd(_) | Tool::Loudness(_) => None,
         }
     }
 
@@ -610,6 +650,7 @@ impl Tool {
             Tool::Ddp(a) => &a.run,
             Tool::Ddpjoc(a) => &a.run,
             Tool::Dthd(a) => &a.run,
+            Tool::Loudness(a) => &a.run,
         }
     }
 
@@ -618,6 +659,7 @@ impl Tool {
             Tool::Ddp(args) => &mut args.run,
             Tool::Ddpjoc(args) => &mut args.run,
             Tool::Dthd(args) => &mut args.run,
+            Tool::Loudness(args) => &mut args.run,
         }
     }
 
@@ -694,6 +736,13 @@ impl Tool {
                         template.path().to_string_lossy().into_owned(),
                     );
                     return Ok(Some(template));
+                }
+            }
+            Tool::Loudness(a) => {
+                // DEE's own layouts need no lever.
+                let own = |name: &str| help::METER_NATIVE.iter().any(|row| row.0 == name);
+                if let Some(layout) = a.layout.as_deref().filter(|name| !own(name)) {
+                    env.insert("LOUDNESS_LAYOUT".to_string(), layout.to_string());
                 }
             }
         }
@@ -969,6 +1018,12 @@ fn run() -> i32 {
     if let Tool::Dthd(a) = tool {
         if a.list {
             dthd_list();
+            return 0;
+        }
+    }
+    if let Tool::Loudness(a) = tool {
+        if a.list {
+            loudness_list();
             return 0;
         }
     }

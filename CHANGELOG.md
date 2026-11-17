@@ -3,6 +3,12 @@
 Each release has a section headed by its tag. The release workflow publishes that section as the
 release notes and refuses to run without it, so write it before running the workflow.
 
+## Unreleased
+
+- New `measure_loudness` subcommand for `dee_measure_loudness`. `--layout` measures the layouts
+  DEE's meter has but its CLI refuses: 7.1, 5.1.4, 7.1.4, 9.1.6, and 3.0, 3.0-back, 4.0,
+  4.0-quad and 5.0, which the result reports as `multichannel_5_1` (#6).
+
 ## v0.2.1
 
 - `ddpjoc_encoder` and `dthd_encoder` on Windows: a zero-fill in DEE that AMD Zen 3 runs about

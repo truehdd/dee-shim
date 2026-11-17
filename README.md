@@ -2,7 +2,7 @@
 
 Run the Dolby Encoding Engine (DEE) command line encoders with controls their CLI does not
 expose: rare channel layouts, higher data rates, an E-AC-3 core for Atmos, and object metadata
-coded exactly as authored.
+coded exactly as authored. The loudness meter measures 7.1 and other layouts too.
 
 `dee_shim` never modifies a DEE file. It loads the untouched tool into its own process, patches
 that private copy in memory, and runs it.
@@ -12,6 +12,7 @@ that private copy in memory, and runs it.
 | `ddp_encoder` | `dee_ddp_encoder` | Dolby Digital Plus | macOS, Linux, Windows |
 | `ddpjoc_encoder` | `dee_ddpjoc_encoder` | Dolby Digital Plus with Atmos (JOC) | macOS, Linux, Windows |
 | `dthd_encoder` | `dee_dthd_encoder` | Dolby TrueHD | macOS, Linux¹, Windows |
+| `measure_loudness` | `dee_measure_loudness` | Loudness manifest | macOS, Linux, Windows |
 
 ¹ DEE 6.7 ships no Linux TrueHD encoder. On Linux, `dthd_encoder` runs the macOS encoder as built by
 [dthd-mac2linux](https://github.com/truehdd/dthd-mac2linux) (tested with v0.1.1 and v0.2.1).
@@ -74,6 +75,12 @@ Every feature works the same on macOS, Linux and Windows.
 | A job authored from a JSON spec | `--compose` |
 | Your own job file | `--mll` |
 
+#### `measure_loudness` · Loudness meter
+
+| Feature | Switch |
+|---|---|
+| 7.1, 5.1.4, 7.1.4, 9.1.6 and 3.0 to 5.0 input, which DEE's meter has but its CLI refuses | `--layout`, `--list` |
+
 Every tool also takes raw levers (`--set NAME=VALUE`) and prints the command it would run
 (`--dry-run`). DEE's own `-e` sub-options, such as the DRC profiles, keep working under the mode
 a layout picks (see [Layouts and modes](#layouts-and-modes)).
@@ -84,7 +91,8 @@ for `dthd_encoder`) keeps DEE's own code, for comparing.
 
 `dee_shim <tool> --help` explains every switch and lever. `dee_shim ddp_encoder --list` and
 `dee_shim ddpjoc_encoder --list` print the layouts, their input order and the accepted data rates;
-`dee_shim dthd_encoder --list` prints the TrueHD layouts slot by slot.
+`dee_shim dthd_encoder --list` prints the TrueHD layouts slot by slot, and
+`dee_shim measure_loudness --list` the meter's.
 
 ## Usage
 
@@ -100,6 +108,9 @@ dee_shim ddpjoc_encoder --layout 7.1/eac3 --bitrate 384:640 -- \
 
 dee_shim dthd_encoder --oamd-as-is on --as-is on -- \
   --presentation atmos -f atmos_mezz -i in.atmos -o out.mlp
+
+dee_shim measure_loudness --layout 7.1 -- \
+  --input-format wav -i in.wav --output-manifest out.json
 ```
 
 | Topic | Behaviour |
@@ -109,6 +120,7 @@ dee_shim dthd_encoder --oamd-as-is on --as-is on -- \
 | Licence file | DEE reads the `license.lic` beside the tool; pass DEE's own `--license PATH` for another. |
 | Paths | Resolved against the caller's working directory, which is never changed. |
 | WAV input (`ddp_encoder`) | A multichannel WAV holds the layout's input slots in the order `--list` prints, with a silent channel for each `-` slot. DEE codes only the listed slots but measures loudness over every channel, so audio in a `-` slot changes the stream's dialnorm. `--input-format wav_list` takes one mono WAV per slot and `-` for an empty one. |
+| Layout of `measure_loudness` | The input must have the layout's channel count; another count is refused, 5.1 too, though mono and stereo are still measured as themselves. The meter takes the layout from the channel order alone, so 4.0 and 4.0-quad, or 3.0 and 3.0-back, cannot be told apart: the wrong name gives a wrong figure without a message. 3.0 to 5.0 are reported as `multichannel_5_1`. |
 | Loudness in bluray mode | DEE refuses loudness correction there, so pass `--loudness-management measure_only` with the `ddp_encoder` layouts that have an AC-3 core. |
 | Version | `-V` prints `vX.Y.Z+gHASH` at a release tag and `vX.Y.Z+N-gHASH` N commits after it. |
 

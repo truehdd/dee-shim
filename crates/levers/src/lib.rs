@@ -61,6 +61,8 @@ pub const KEYS: &[&str] = &[
     "DTHD_COMPOSE",
     "DTHD_LAYOUT",
     "DTHD_ZERO_FILL_ORIGINAL",
+    // dee_measure_loudness
+    "LOUDNESS_LAYOUT",
 ];
 
 /// A closed set of names, each parsed from and written as one string.
@@ -122,6 +124,55 @@ names! {
         DvdA = "dvd-a",
         HddvdVideo = "hddvd-video",
         NonConformantFba = "non-conformant-fba",
+    }
+}
+
+names! {
+    /// A channel layout the loudness meter has but dee_measure_loudness refuses.
+    MeterLayout {
+        L30 = "3.0",
+        L30Back = "3.0-back",
+        L40 = "4.0",
+        L40Quad = "4.0-quad",
+        L50 = "5.0",
+        L71 = "7.1",
+        L514 = "5.1.4",
+        L714 = "7.1.4",
+        L916 = "9.1.6",
+    }
+}
+
+impl MeterLayout {
+    /// The input's channels in order; from the seventh on, the meter weighs every channel alike.
+    pub fn slots(self) -> &'static str {
+        match self {
+            Self::L30 => "L R C",
+            Self::L30Back => "L R S",
+            Self::L40 => "L R C S",
+            Self::L40Quad => "L R Ls Rs",
+            Self::L50 => "L R C Ls Rs",
+            Self::L71 => "L R C LFE Ls Rs Lrs Rrs",
+            Self::L514 => "L R C LFE Ls Rs Ltf Rtf Ltr Rtr",
+            Self::L714 => "L R C LFE Ls Rs Lrs Rrs Ltf Rtf Ltr Rtr",
+            Self::L916 => "L R C LFE Ls Rs Lrs Rrs Lw Rw Ltf Rtf Ltm Rtm Ltr Rtr",
+        }
+    }
+
+    pub fn channels(self) -> u32 {
+        self.slots().split(' ').count() as u32
+    }
+
+    /// The meter's channel configuration, for the layouts without LFE: the tool has none of
+    /// these, and reports them as 5.1.
+    pub fn config(self) -> Option<i32> {
+        match self {
+            Self::L30 => Some(2),
+            Self::L30Back => Some(3),
+            Self::L40 => Some(4),
+            Self::L40Quad => Some(5),
+            Self::L50 => Some(6),
+            _ => None,
+        }
     }
 }
 
@@ -364,11 +415,18 @@ impl Dthd {
     }
 }
 
+/// dee_measure_loudness.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Loudness {
+    pub layout: Option<MeterLayout>,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Levers {
     pub ddp: Ddp,
     pub ddpjoc: Ddpjoc,
     pub dthd: Dthd,
+    pub loudness: Loudness,
 }
 
 fn switch(key: &str, value: &str) -> Result<bool, String> {
@@ -482,6 +540,7 @@ impl Levers {
             "DTHD_COMPOSE" => t.compose = Some(v.to_string()),
             "DTHD_LAYOUT" => t.layout = Some(v.to_string()),
             "DTHD_ZERO_FILL_ORIGINAL" => t.zero_fill_original = flag(key, v)?,
+            "LOUDNESS_LAYOUT" => self.loudness.layout = Some(MeterLayout::parse(key, v)?),
             _ => {
                 let oamd = if let Some(rest) = key.strip_prefix("DDPJOC_") {
                     Some((&mut j.oamd, rest))
@@ -562,6 +621,10 @@ impl Levers {
         put("DTHD_COMPOSE", t.compose.clone());
         put("DTHD_LAYOUT", t.layout.clone());
         put("DTHD_ZERO_FILL_ORIGINAL", fl(t.zero_fill_original));
+        put(
+            "LOUDNESS_LAYOUT",
+            self.loudness.layout.map(|v| v.name().to_string()),
+        );
         out
     }
 
@@ -657,6 +720,7 @@ mod tests {
                     "DTHD_TARGET" => "dvd-a",
                     "DTHD_COMPOSE" => "/x/tmpl\\with\nnewline.mll",
                     "DTHD_LAYOUT" => "8ch=L,R,C,-,Ls,Rs,Cs;2ch=1.0",
+                    "LOUDNESS_LAYOUT" => "4.0",
                     _ => "on",
                 };
                 (k.to_string(), v.to_string())

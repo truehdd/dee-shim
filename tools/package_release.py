@@ -89,7 +89,7 @@ def main():
     cli.mkdir()
     env = dict(os.environ, NO_COLOR="1", COLUMNS="100")
     commands = [([], "help")]
-    tools = ["ddp_encoder", "ddpjoc_encoder", "dthd_encoder"]
+    tools = ["ddp_encoder", "ddpjoc_encoder", "dthd_encoder", "measure_loudness"]
     commands += [([tool], tool) for tool in tools]
     for subcommand, filename in commands:
         result = subprocess.run(
