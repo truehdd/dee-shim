@@ -843,6 +843,26 @@ fn split_mode(value: Option<&str>) -> (Option<String>, Vec<String>) {
     (base, parts)
 }
 
+/// The mode to run: `--mode` over the layout's own, which still gives the mode name when
+/// `--mode` has none and its sub-options (5.0's `lfe_on=0`) where `--mode` does not set them.
+fn layout_mode(mode: Option<&str>, layout: Option<String>) -> Option<String> {
+    let Some(mode) = mode else {
+        return layout;
+    };
+    let (base, opts) = split_mode(Some(mode));
+    let (layout_base, layout_opts) = split_mode(layout.as_deref());
+    let key = |o: &str| o.split('=').next().unwrap_or(o).to_owned();
+    let set: Vec<String> = opts.iter().map(|o| key(o)).collect();
+    let kept = layout_opts.into_iter().filter(|o| !set.contains(&key(o)));
+    let parts: Vec<String> = base
+        .or(layout_base)
+        .into_iter()
+        .chain(kept)
+        .chain(opts)
+        .collect();
+    Some(parts.join(":"))
+}
+
 /// The `-e`/`--encoder` value in native args, if the operator gave one.
 fn native_mode(native: &[String]) -> Option<String> {
     let mut it = native.iter();
@@ -1122,6 +1142,9 @@ fn run() -> i32 {
                 r.note
             );
         }
+        if exe == "dee_ddp_encoder" {
+            println!("\n  The layouts up to 5.1 are also Dolby Digital (AC-3): add --mode dd.");
+        }
         let r = rates::render(exe, 2, 92);
         if !r.is_empty() {
             print!("\n{r}");
@@ -1193,7 +1216,7 @@ fn run() -> i32 {
             rewrite = true;
         }
     }
-    let ours = recipe.and_then(|r| r.mode.clone()).or(recipe_mode);
+    let ours = layout_mode(recipe.and_then(|r| r.mode.as_deref()), recipe_mode);
     let final_mode = if ours.is_some() || rewrite {
         let (base, own) = split_mode(ours.as_deref());
         let key = |o: &str| o.split('=').next().unwrap_or(o).to_owned();
@@ -1238,6 +1261,24 @@ fn run() -> i32 {
     });
     let eff_mode = final_mode.clone().or_else(|| native_mode(&run.native));
     let mode = eff_mode.as_deref().map(rates::base_mode);
+    // Dolby Digital has no dependent substream: DEE mixes 7.1 down to 5.1 there without a
+    // message and fails on the other extended layouts with a parameter error.
+    if exe == "dee_ddp_encoder" && mode == Some("dd") {
+        let layout = recipe.and_then(|r| r.layout.as_deref());
+        let extended = layout
+            .and_then(|name| recipes::find(exe, name))
+            .is_some_and(|r| r.inputs.split_whitespace().count() > 6);
+        if extended {
+            usage_error(
+                tool,
+                ErrorKind::ArgumentConflict,
+                format!(
+                    "--layout {} needs a dependent substream, which Dolby Digital (mode dd) does not have; the layouts up to 5.1 work with it",
+                    layout.unwrap_or("")
+                ),
+            );
+        }
+    }
     let ddp_eac3 = exe == "dee_ddp_encoder"
         && mode == Some("ddp")
         && recipe
@@ -1424,4 +1465,24 @@ fn run() -> i32 {
         return 2;
     }
     in_process(run, exe, &native, &levers, child_temp)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::layout_mode;
+
+    #[test]
+    fn mode_keeps_the_layouts_sub_options() {
+        let layout = || Some("ddp:lfe_on=0".to_string());
+        assert_eq!(layout_mode(None, layout()), layout());
+        assert_eq!(layout_mode(Some("dd"), layout()).unwrap(), "dd:lfe_on=0");
+        assert_eq!(
+            layout_mode(Some("dd:lfe_on=1"), layout()).unwrap(),
+            "dd:lfe_on=1"
+        );
+        assert_eq!(
+            layout_mode(Some("drc_profile=none"), layout()).unwrap(),
+            "ddp:lfe_on=0:drc_profile=none"
+        );
+    }
 }

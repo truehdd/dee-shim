@@ -69,8 +69,9 @@ pub fn mode_arg(arg: Arg, tool: &str) -> Arg {
     } else {
         (
             "Native mode: dd, ddp, bluray or bluray_secondary",
-            "Overrides the layout's mode. A native -e must name the same mode or none; its sub-options \
-             are kept. \
+            "Overrides the layout's mode and keeps the layout's sub-options. dd codes the layouts up \
+             to 5.1 as Dolby Digital (AC-3). A native -e must name the same mode or none; its \
+             sub-options are kept. \
              Sub-options pass through, e.g. \
              ddp:lfe_on=0. The recipe's mode is the tested one; an override may be incompatible \
              with its channel layout.",
@@ -97,20 +98,26 @@ pub fn bitrate_arg(arg: Arg, tool: &str) -> Arg {
 pub const DDP_HELP: &str = "\
 Encode Dolby Digital Plus (dee_ddp_encoder).
 
---layout picks a named channel layout; `dee_shim ddp_encoder --list` shows each layout's input slots,
-mode and the accepted data rates. These layouts carry channel audio without JOC metadata.
+--layout picks a named channel layout; `dee_shim ddp_encoder --list` shows each layout's input
+slots, mode and the accepted data rates. These layouts carry channel audio without JOC metadata.
+
+The layouts up to 5.1 are coded as Dolby Digital Plus (E-AC-3); add --mode dd for Dolby Digital
+(AC-3), which has every one of them:
+  dee_shim ddp_encoder --layout 4.0 --mode dd -- --input-format wav -i in.wav -o out.ac3
 
 Extended layouts are 5.1.2 (front heights), 5.1.2-top (top surrounds), 6.1 and 7.1, and their
 variants without LFE, 5.0.2, 5.0.2-top, 6.0 and 7.0. Each codes an AC-3 core plus an E-AC-3
 dependent substream in bluray mode. Append /eac3 for an E-AC-3 independent substream in place
-of the AC-3 core, in ddp mode.
+of the AC-3 core, in ddp mode. Dolby Digital alone cannot hold them, as it has no dependent
+substream, so --mode dd is refused with them.
 
 MODE
-  A layout supplies the binary's -e, so no -e is needed; --mode overrides it. Besides the
-  documented dd and ddp, the binary has two hidden modes: bluray (AC-3 core plus E-AC-3
-  dependent) and bluray_secondary (one E-AC-3 independent substream, at most 256 kbps). An
-  override can ask for what the encoder refuses (6.1 in bluray_secondary fails: its acmod is
-  invalid there). Sub-options pass through, as in --mode ddp:lfe_on=0.
+  A layout supplies the binary's -e, so no -e is needed; --mode overrides it and keeps the
+  layout's sub-options (5.0 stays without LFE under --mode dd). Besides the documented dd and
+  ddp, the binary has two hidden modes: bluray (AC-3 core plus E-AC-3 dependent) and
+  bluray_secondary (one E-AC-3 independent substream, at most 256 kbps). An override can ask
+  for what the encoder refuses (6.1 in bluray_secondary fails: its acmod is invalid there).
+  Sub-options pass through, as in --mode ddp:lfe_on=0.
 
 BITRATE
   --bitrate takes a total, or R0:R1 (core or independent : dependent) for an extended layout.

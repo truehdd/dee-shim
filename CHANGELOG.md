@@ -5,6 +5,11 @@ release notes and refuses to run without it, so write it before running the work
 
 ## Unreleased
 
+- `ddp_encoder`: the help, `--list` and the README now say that `--mode dd` codes every layout
+  up to 5.1 as Dolby Digital (AC-3). `--mode` keeps the layout's sub-options; before,
+  `--layout 5.0 --mode dd` came out with an LFE channel. `--mode dd` with an extended layout
+  is refused; before, DEE mixed 7.1 down to 5.1 without a message and failed on the others
+  with a parameter error.
 - New `ddp_decoder` subcommand for `dee_ddp_decoder`. `--layout native` writes every channel
   the stream codes, so a 7.1 stream decodes to eight channels; DEE's own `-c` has 5.1, stereo
   and mono (#6).

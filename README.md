@@ -48,6 +48,7 @@ Every feature works the same on macOS, Linux and Windows.
 |---|---|
 | 31 layouts from 1+1 to 7.1, each with its input order and data rates | `--layout`, `--list` |
 | An E-AC-3 core in place of the AC-3 core for the extended layouts | `/eac3` |
+| Dolby Digital (AC-3) for every layout up to 5.1 | `--mode dd` |
 | A data rate per substream | `--bitrate R0:R1` |
 | The 5.1 core downmix of 7.0 and 7.1 | `--core-type` |
 | DEE's encoder mode chosen outright, native `-e` sub-options kept | `--mode` |
@@ -143,6 +144,7 @@ A layout also chooses DEE's encoder mode (its `-e`), so no `-e` is needed:
 | Tool | Layouts | DEE mode | Coded stream |
 |---|---|---|---|
 | `ddp_encoder` | up to 5.1 | `ddp` | one E-AC-3 independent substream |
+| `ddp_encoder` | up to 5.1, with `--mode dd` | `dd` | Dolby Digital (AC-3) |
 | `ddp_encoder` | 5.1.2, 5.1.2-top, 6.1, 7.1 and their variants without LFE | `bluray` | AC-3 core plus E-AC-3 dependent |
 | `ddp_encoder` | the same with `/eac3` | `ddp` | E-AC-3 independent plus dependent |
 | `ddpjoc_encoder` | 5.1 | `ddpjoc` | one E-AC-3 independent substream with JOC |
@@ -155,8 +157,9 @@ does not name the stream it produces.
 
 DEE's own `-e` may still be given. Its sub-options are kept, so `-e ddp:drc_profile=none` works with
 any `ddp_encoder` layout; a mode named in it must match the layout's mode or `--mode`, or dee_shim
-refuses the run. `--mode` overrides the layout's mode outright; sub-options given with it win over
-those of a native `-e`. A native `--data-rate` is handled exactly as `--bitrate`; giving both with
+refuses the run. `--mode` overrides the layout's mode and keeps the layout's sub-options (5.0
+stays without LFE); sub-options given with it win over those of a native `-e`. Dolby Digital has
+no dependent substream, so `--mode dd` is refused with the extended layouts. A native `--data-rate` is handled exactly as `--bitrate`; giving both with
 different totals is refused.
 A layout's own mode is the tested one; another mode can ask for something the encoder refuses.
 `dee_ddp_encoder` also has two modes its documentation omits, `bluray` and `bluray_secondary` (one E-AC-3
