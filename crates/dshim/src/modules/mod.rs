@@ -1,5 +1,6 @@
 //! Modules: the controls, grouped by the tool they target. Each tool is a submodule (`ddp`,
-//! `ddpjoc`, `dthd`, `loudness`); within it, one file per capability. A module is `fn install(res, log)`,
+//! `ddpdec`, `ddpjoc`, `dthd`, `loudness`); within it, one file per capability. A module is
+//! `fn install(res, log)`,
 //! gated on its levers (`crate::levers()`), that asks the resolver for sites by name. A site
 //! missing from the matched profile makes that capability skip with a logged note, never a
 //! crash, so running every tool's modules against whatever binary is hosted is safe.
@@ -16,6 +17,8 @@ mod timing;
 // drop a tool with `--no-default-features --features <tools>`.
 #[cfg(feature = "ddp")]
 pub mod ddp;
+#[cfg(feature = "ddpdec")]
+pub mod ddpdec;
 #[cfg(feature = "ddpjoc")]
 pub mod ddpjoc;
 #[cfg(feature = "dthd")]
@@ -31,6 +34,8 @@ use std::io::Write;
 pub fn run_all(res: &Resolver, log: &mut dyn Write) {
     #[cfg(feature = "ddp")]
     ddp::run_all(res, log);
+    #[cfg(feature = "ddpdec")]
+    ddpdec::run_all(res, log);
     #[cfg(feature = "ddpjoc")]
     ddpjoc::run_all(res, log);
     #[cfg(feature = "dthd")]
@@ -40,6 +45,7 @@ pub fn run_all(res: &Resolver, log: &mut dyn Write) {
     // Silence unused-param warnings when no tool feature is enabled.
     #[cfg(not(any(
         feature = "ddp",
+        feature = "ddpdec",
         feature = "ddpjoc",
         feature = "dthd",
         feature = "loudness"

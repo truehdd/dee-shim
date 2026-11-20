@@ -17,9 +17,10 @@ log.workspace = true
 # Tool features select modules; the DEE version feature selects site profiles. Both are
 # needed for a narrow build, e.g. --no-default-features --features dthd,dee_6_7.
 [features]
-default = ["ddp", "ddpjoc", "dthd", "loudness", "dee_6_7"]
+default = ["ddp", "ddpdec", "ddpjoc", "dthd", "loudness", "dee_6_7"]
 dee_6_7 = ["dshim-profiles/dee_6_7"]
 ddp = ["dshim-profiles/ddp"]
+ddpdec = ["dshim-profiles/ddpdec"]
 ddpjoc = ["dshim-profiles/ddpjoc"]
 dthd = ["dshim-profiles/dthd"]
 loudness = ["dshim-profiles/loudness"]

@@ -19,7 +19,7 @@ mod help;
 mod host;
 mod paths;
 mod preflight;
-use help::{DDPJOC_HELP, DDP_HELP, DTHD_HELP, DTHD_KEEP_QUIET, LOUDNESS_HELP};
+use help::{DDPDEC_HELP, DDPJOC_HELP, DDP_HELP, DTHD_HELP, DTHD_KEEP_QUIET, LOUDNESS_HELP};
 
 #[derive(Parser)]
 #[command(
@@ -71,6 +71,10 @@ enum Tool {
     #[command(long_about = DTHD_HELP, arg_required_else_help = true)]
     #[command(mut_arg("oamd_keep_quiet", |a| a.long_help(DTHD_KEEP_QUIET)))]
     Dthd(DthdArgs),
+    /// Decode Dolby Digital Plus (dee_ddp_decoder)
+    #[command(name = "ddp_decoder")]
+    #[command(long_about = DDPDEC_HELP, arg_required_else_help = true)]
+    Ddpdec(DdpdecArgs),
     /// Measure loudness (dee_measure_loudness)
     #[command(name = "measure_loudness")]
     #[command(long_about = LOUDNESS_HELP, arg_required_else_help = true)]
@@ -507,6 +511,28 @@ struct DthdArgs {
 }
 
 #[derive(Args)]
+struct DdpdecArgs {
+    /// Output layout: native writes every channel the stream codes
+    ///
+    /// Stands in for DEE's own -c, which has 5.1, stereo and mono
+    #[arg(long, value_name = "NAME", value_parser = ["native"], help_heading = "Layout")]
+    layout: Option<String>,
+
+    #[command(flatten)]
+    run: Runner,
+}
+
+/// Whether the native arguments name an output channel layout.
+fn native_channel_layout(native: &[String]) -> bool {
+    native.iter().any(|arg| {
+        arg == "-c"
+            || arg == "--output-channel-layout"
+            || arg.starts_with("-c=")
+            || arg.starts_with("--output-channel-layout=")
+    })
+}
+
+#[derive(Args)]
 struct LoudnessArgs {
     /// Channel layout of the input, by name (see --list)
     ///
@@ -624,6 +650,7 @@ impl Tool {
             Tool::Ddp(_) => "dee_ddp_encoder",
             Tool::Ddpjoc(_) => "dee_ddpjoc_encoder",
             Tool::Dthd(_) => "dee_dthd_encoder",
+            Tool::Ddpdec(_) => "dee_ddp_decoder",
             Tool::Loudness(_) => "dee_measure_loudness",
         }
     }
@@ -633,6 +660,7 @@ impl Tool {
             Tool::Ddp(_) => "ddp_encoder",
             Tool::Ddpjoc(_) => "ddpjoc_encoder",
             Tool::Dthd(_) => "dthd_encoder",
+            Tool::Ddpdec(_) => "ddp_decoder",
             Tool::Loudness(_) => "measure_loudness",
         }
     }
@@ -641,7 +669,7 @@ impl Tool {
         match self {
             Tool::Ddp(a) => Some(&a.recipe),
             Tool::Ddpjoc(a) => Some(&a.recipe),
-            Tool::Dthd(_) | Tool::Loudness(_) => None,
+            Tool::Dthd(_) | Tool::Ddpdec(_) | Tool::Loudness(_) => None,
         }
     }
 
@@ -650,6 +678,7 @@ impl Tool {
             Tool::Ddp(a) => &a.run,
             Tool::Ddpjoc(a) => &a.run,
             Tool::Dthd(a) => &a.run,
+            Tool::Ddpdec(a) => &a.run,
             Tool::Loudness(a) => &a.run,
         }
     }
@@ -659,6 +688,7 @@ impl Tool {
             Tool::Ddp(args) => &mut args.run,
             Tool::Ddpjoc(args) => &mut args.run,
             Tool::Dthd(args) => &mut args.run,
+            Tool::Ddpdec(args) => &mut args.run,
             Tool::Loudness(args) => &mut args.run,
         }
     }
@@ -736,6 +766,11 @@ impl Tool {
                         template.path().to_string_lossy().into_owned(),
                     );
                     return Ok(Some(template));
+                }
+            }
+            Tool::Ddpdec(a) => {
+                if let Some(layout) = &a.layout {
+                    env.insert("DDPDEC_LAYOUT".to_string(), layout.clone());
                 }
             }
             Tool::Loudness(a) => {
@@ -1315,6 +1350,21 @@ fn run() -> i32 {
         owned.push(frontend_rate.to_string());
         if frontend_rate != k {
             log::info!("DEE runs at --data-rate {frontend_rate}; the shim codes {k} kbps");
+        }
+    }
+
+    // The decoder runs as 5.1 under --layout native, so the shim gives DEE's -c itself.
+    if let Tool::Ddpdec(a) = tool {
+        if a.layout.is_some() {
+            if native_channel_layout(&native) {
+                usage_error(
+                    tool,
+                    ErrorKind::ArgumentConflict,
+                    "--layout native stands in for the native -c; give one",
+                );
+            }
+            owned.push("-c".to_string());
+            owned.push("5.1".to_string());
         }
     }
 

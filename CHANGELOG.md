@@ -5,6 +5,9 @@ release notes and refuses to run without it, so write it before running the work
 
 ## Unreleased
 
+- New `ddp_decoder` subcommand for `dee_ddp_decoder`. `--layout native` writes every channel
+  the stream codes, so a 7.1 stream decodes to eight channels; DEE's own `-c` has 5.1, stereo
+  and mono (#6).
 - New `measure_loudness` subcommand for `dee_measure_loudness`. `--layout` measures the layouts
   DEE's meter has but its CLI refuses: 7.1, 5.1.4, 7.1.4, 9.1.6, and 3.0, 3.0-back, 4.0,
   4.0-quad and 5.0, which the result reports as `multichannel_5_1` (#6).

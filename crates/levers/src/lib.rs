@@ -61,6 +61,8 @@ pub const KEYS: &[&str] = &[
     "DTHD_COMPOSE",
     "DTHD_LAYOUT",
     "DTHD_ZERO_FILL_ORIGINAL",
+    // dee_ddp_decoder
+    "DDPDEC_LAYOUT",
     // dee_measure_loudness
     "LOUDNESS_LAYOUT",
 ];
@@ -125,6 +127,11 @@ names! {
         HddvdVideo = "hddvd-video",
         NonConformantFba = "non-conformant-fba",
     }
+}
+
+names! {
+    /// An output layout dee_ddp_decoder does not offer: every channel the stream codes.
+    DecoderLayout { Native = "native" }
 }
 
 names! {
@@ -415,6 +422,12 @@ impl Dthd {
     }
 }
 
+/// dee_ddp_decoder.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Ddpdec {
+    pub layout: Option<DecoderLayout>,
+}
+
 /// dee_measure_loudness.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Loudness {
@@ -424,6 +437,7 @@ pub struct Loudness {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Levers {
     pub ddp: Ddp,
+    pub ddpdec: Ddpdec,
     pub ddpjoc: Ddpjoc,
     pub dthd: Dthd,
     pub loudness: Loudness,
@@ -540,6 +554,7 @@ impl Levers {
             "DTHD_COMPOSE" => t.compose = Some(v.to_string()),
             "DTHD_LAYOUT" => t.layout = Some(v.to_string()),
             "DTHD_ZERO_FILL_ORIGINAL" => t.zero_fill_original = flag(key, v)?,
+            "DDPDEC_LAYOUT" => self.ddpdec.layout = Some(DecoderLayout::parse(key, v)?),
             "LOUDNESS_LAYOUT" => self.loudness.layout = Some(MeterLayout::parse(key, v)?),
             _ => {
                 let oamd = if let Some(rest) = key.strip_prefix("DDPJOC_") {
@@ -621,6 +636,10 @@ impl Levers {
         put("DTHD_COMPOSE", t.compose.clone());
         put("DTHD_LAYOUT", t.layout.clone());
         put("DTHD_ZERO_FILL_ORIGINAL", fl(t.zero_fill_original));
+        put(
+            "DDPDEC_LAYOUT",
+            self.ddpdec.layout.map(|v| v.name().to_string()),
+        );
         put(
             "LOUDNESS_LAYOUT",
             self.loudness.layout.map(|v| v.name().to_string()),
@@ -720,6 +739,7 @@ mod tests {
                     "DTHD_TARGET" => "dvd-a",
                     "DTHD_COMPOSE" => "/x/tmpl\\with\nnewline.mll",
                     "DTHD_LAYOUT" => "8ch=L,R,C,-,Ls,Rs,Cs;2ch=1.0",
+                    "DDPDEC_LAYOUT" => "native",
                     "LOUDNESS_LAYOUT" => "4.0",
                     _ => "on",
                 };

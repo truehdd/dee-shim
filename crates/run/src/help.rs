@@ -283,3 +283,24 @@ LAYOUT
   and stereo are still measured as themselves. Two layouts of one channel count (4.0 and
   4.0-quad, 3.0 and 3.0-back) cannot be told apart from the input: the meter takes the one
   named, and the wrong name gives a wrong figure without a message.";
+
+pub const DDPDEC_HELP: &str = "\
+Decode Dolby Digital Plus (dee_ddp_decoder).
+
+Give DEE's own arguments after --. DEE writes 5.1, stereo or mono (-c) and mixes a larger
+stream down. --layout native writes every channel the stream codes; leave -c out with it:
+  dee_shim ddp_decoder --layout native -- -i in.ec3 -o out.wav --output-format wav
+
+LAYOUT
+  With --layout native the output has the stream's own channels in this order:
+    7.1    L R C LFE Ls Rs Lrs Rrs
+    6.1    L R C LFE Ls Rs Cs
+    5.1.2  L R C LFE Ls Rs and the height pair
+    7.0    L R C Ls Rs Lrs Rrs
+    5.1    L R C LFE Ls Rs (5.0 too, with a silent LFE)
+    2.0    L R
+    1.0    C
+  Any other layout gives its own channels in the same order, as 4.0 gives L R C S. An Atmos
+  stream gives its channel backbone; the objects are not rendered. A WAV's channel mask is
+  DEE's for the channel count, so go by the order: eight channels are marked as 7.1 whatever
+  the last pair is, and three, four and seven channels get no mask.";

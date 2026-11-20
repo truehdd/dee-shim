@@ -11,6 +11,12 @@ pub mod ddp_linux_6_7_0;
 pub mod ddp_macos_6_7_0;
 #[cfg(all(feature = "ddp", feature = "dee_6_7"))]
 pub mod ddp_windows_6_7_0;
+#[cfg(all(feature = "ddpdec", feature = "dee_6_7"))]
+pub mod ddpdec_linux_6_7_0;
+#[cfg(all(feature = "ddpdec", feature = "dee_6_7"))]
+pub mod ddpdec_macos_6_7_0;
+#[cfg(all(feature = "ddpdec", feature = "dee_6_7"))]
+pub mod ddpdec_windows_6_7_0;
 #[cfg(all(feature = "ddpjoc", feature = "dee_6_7"))]
 pub mod ddpjoc_linux_6_7_0;
 #[cfg(all(feature = "ddpjoc", feature = "dee_6_7"))]

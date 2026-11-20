@@ -14,9 +14,10 @@ dshim-profile-model.workspace = true
 # Tool and DEE version features are independent. A profile is compiled only when both match.
 # The DEE 6.7 profiles are in crates/dee67, which dee_6_7 pulls in.
 [features]
-default = ["ddp", "ddpjoc", "dthd", "loudness", "dee_6_7"]
+default = ["ddp", "ddpdec", "ddpjoc", "dthd", "loudness", "dee_6_7"]
 dee_6_7 = ["dep:dshim-dee67", "dshim-dee67/dee_6_7"]
 ddp = ["dshim-dee67?/ddp"]
+ddpdec = ["dshim-dee67?/ddpdec"]
 ddpjoc = ["dshim-dee67?/ddpjoc"]
 dthd = ["dshim-dee67?/dthd"]
 loudness = ["dshim-dee67?/loudness"]

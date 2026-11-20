@@ -15,6 +15,7 @@ dshim-profile-model.workspace = true
 [features]
 dee_6_7 = []
 ddp = []
+ddpdec = []
 ddpjoc = []
 dthd = []
 loudness = []
