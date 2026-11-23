@@ -98,6 +98,8 @@ def main():
         )
         (cli / f"{filename}.txt").write_text(result.stdout, encoding="utf-8")
     for tool in tools:
+        if tool == "ddp_decoder":  # one layout, no --list
+            continue
         result = subprocess.run(
             [str(package / command), tool, "--list"],
             check=True, capture_output=True, text=True, env=env,
