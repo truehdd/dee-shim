@@ -3,7 +3,7 @@
 Each release has a section headed by its tag. The release workflow publishes that section as the
 release notes and refuses to run without it, so write it before running the workflow.
 
-## Unreleased
+## v0.3.0
 
 - `ddp_encoder`: the help, `--list` and the README now say that `--mode dd` codes every layout
   up to 5.1 as Dolby Digital (AC-3). `--mode` keeps the layout's sub-options; before,
