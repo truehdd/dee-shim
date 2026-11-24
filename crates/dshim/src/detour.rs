@@ -73,6 +73,33 @@ pub fn install_call(target: usize, steal: usize, call_offset: usize, hook: usize
     install_body(target, steal, hook, &relocated)
 }
 
+fn relocate_load(target: usize, body: &[u8], load_offset: usize) -> Option<Vec<u8>> {
+    let end = load_offset.checked_add(7)?;
+    let load = body.get(load_offset..end)?;
+    if load[..3] != [0x48, 0x8B, 0x05] {
+        return None;
+    }
+    let disp = i32::from_le_bytes(load[3..].try_into().ok()?);
+    let source = target.wrapping_add(end).wrapping_add_signed(disp as isize);
+    let mut relocated = body[..load_offset].to_vec();
+    // mov rax, [moffs64]
+    relocated.extend_from_slice(&[0x48, 0xA1]);
+    relocated.extend_from_slice(&(source as u64).to_le_bytes());
+    relocated.extend_from_slice(&body[end..]);
+    Some(relocated)
+}
+
+/// Relocate one profiled `mov rax, [rip+disp32]`; all other stolen instructions must be
+/// position independent.
+pub fn install_load(target: usize, steal: usize, load_offset: usize, hook: usize) -> Option<usize> {
+    if steal < 12 {
+        return None;
+    }
+    let body = unsafe { std::slice::from_raw_parts(target as *const u8, steal) };
+    let relocated = relocate_load(target, body, load_offset)?;
+    install_body(target, steal, hook, &relocated)
+}
+
 fn install_body(target: usize, steal: usize, hook: usize, body: &[u8]) -> Option<usize> {
     let tramp = platform::alloc_rwx(body.len() + 14);
     if tramp.is_null() {
@@ -114,6 +141,20 @@ mod tests {
         }
         assert!(relocate_call(0, &[0x90; 16], 11).is_none());
         assert!(relocate_call(0, &[0xE8; 4], 0).is_none());
+    }
+
+    #[test]
+    fn relocated_load_reads_the_same_address() {
+        // push rbx; mov rax, [rip+0x100]; xor rax, rsp
+        let body = [
+            0x40, 0x53, 0x48, 0x8B, 0x05, 0x00, 0x01, 0x00, 0x00, 0x48, 0x33, 0xC4,
+        ];
+        let relocated = relocate_load(0x140000000, &body, 2).unwrap();
+        assert_eq!(&relocated[..4], &[0x40, 0x53, 0x48, 0xA1]);
+        let source = u64::from_le_bytes(relocated[4..12].try_into().unwrap());
+        assert_eq!(source, 0x140000000 + 9 + 0x100);
+        assert_eq!(&relocated[12..], &[0x48, 0x33, 0xC4]);
+        assert!(relocate_load(0, &body, 0).is_none());
     }
 
     #[test]

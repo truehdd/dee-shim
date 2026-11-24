@@ -57,6 +57,9 @@ pub enum Kind {
     Hook { steal: usize },
     /// Entry containing one rel32 call; relocate that instruction in the trampoline.
     HookCall { steal: usize, call_offset: usize },
+    /// Entry containing one `mov rax, [rip+disp32]` (MSVC's security cookie load); it becomes
+    /// an absolute load in the trampoline.
+    HookLoad { steal: usize, load_offset: usize },
     /// Fixed byte replacement: `expect` is the original, `new` the replacement (same length,
     /// space-separated hex). Modules may also write their own bytes of that length.
     Patch { new: &'static str },

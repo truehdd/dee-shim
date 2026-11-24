@@ -121,7 +121,9 @@ impl Resolver {
             return None;
         }
         let steal = match s.kind {
-            Kind::Hook { steal } | Kind::HookCall { steal, .. } => steal,
+            Kind::Hook { steal } | Kind::HookCall { steal, .. } | Kind::HookLoad { steal, .. } => {
+                steal
+            }
             _ => 0,
         };
         Some(Resolved {
@@ -145,6 +147,9 @@ impl Resolved {
             Kind::Hook { steal } => crate::detour::install(self.addr, steal, hook),
             Kind::HookCall { steal, call_offset } => {
                 crate::detour::install_call(self.addr, steal, call_offset, hook)
+            }
+            Kind::HookLoad { steal, load_offset } => {
+                crate::detour::install_load(self.addr, steal, load_offset, hook)
             }
             _ => None,
         }
