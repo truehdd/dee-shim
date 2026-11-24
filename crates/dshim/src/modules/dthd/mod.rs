@@ -37,4 +37,5 @@ pub fn run_all(res: &Resolver, log: &mut dyn Write) {
     presentations::install(res, log);
     super::timing::install(res, log);
     length::install(res, log);
+    super::wav_slots::install(res, "dthd", &crate::levers().dthd.wav_slots, log);
 }

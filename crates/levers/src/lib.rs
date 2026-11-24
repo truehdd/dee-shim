@@ -19,6 +19,7 @@ pub const KEYS: &[&str] = &[
     "DDP_RATES",
     "DDP_PHASE90",
     "DDP_CORE_TYPE",
+    "DDP_WAV_SLOTS",
     // dee_ddpjoc_encoder
     "DDPJOC_LAYER",
     "DDPJOC_CORE",
@@ -60,6 +61,7 @@ pub const KEYS: &[&str] = &[
     "DTHD_TARGET",
     "DTHD_COMPOSE",
     "DTHD_LAYOUT",
+    "DTHD_WAV_SLOTS",
     "DTHD_ZERO_FILL_ORIGINAL",
     // dee_ddp_decoder
     "DDPDEC_LAYOUT",
@@ -263,6 +265,78 @@ impl Oamd {
     }
 }
 
+/// A WAV input that holds only its layout's channels: channel i of the file is input slot
+/// `slots[i]` of `total`, and the other slots are silent. Written `TOTAL:SLOT,SLOT,..:PATH`,
+/// one input per line.
+#[derive(Clone, Debug, PartialEq)]
+pub struct WavSlots {
+    pub total: usize,
+    pub slots: Vec<usize>,
+    pub path: String,
+}
+
+impl WavSlots {
+    fn parse(key: &str, text: &str) -> Result<Vec<WavSlots>, String> {
+        let bad = || format!("{key}={text:?}: expected TOTAL:SLOT,SLOT,..:PATH per line");
+        text.lines()
+            .map(|line| {
+                let mut parts = line.splitn(3, ':');
+                let total: usize = parts.next().and_then(|t| t.parse().ok()).ok_or_else(bad)?;
+                let slots = parts
+                    .next()
+                    .ok_or_else(bad)?
+                    .split(',')
+                    .map(|slot| slot.parse::<usize>().ok().filter(|slot| *slot < total))
+                    .collect::<Option<Vec<usize>>>()
+                    .ok_or_else(bad)?;
+                let path = parts
+                    .next()
+                    .filter(|path| !path.is_empty())
+                    .ok_or_else(bad)?;
+                if slots.is_empty() || !slots.windows(2).all(|pair| pair[0] < pair[1]) {
+                    return Err(bad());
+                }
+                Ok(WavSlots {
+                    total,
+                    slots,
+                    path: path.to_string(),
+                })
+            })
+            .collect()
+    }
+
+    pub fn text(list: &[WavSlots]) -> Option<String> {
+        let line = |w: &WavSlots| {
+            let slots: Vec<String> = w.slots.iter().map(usize::to_string).collect();
+            format!("{}:{}:{}", w.total, slots.join(","), w.path)
+        };
+        (!list.is_empty()).then(|| list.iter().map(line).collect::<Vec<_>>().join("\n"))
+    }
+}
+
+/// The channel count and sample rate in a WAV (RIFF, RIFX not handled, or RF64) header's fmt
+/// chunk.
+pub fn wav_format(path: &str) -> Option<(u16, u32)> {
+    use std::io::Read;
+    let mut head = vec![0u8; 1 << 16];
+    let n = std::fs::File::open(path).ok()?.read(&mut head).ok()?;
+    let head = &head[..n];
+    if !matches!(head.get(..4)?, b"RIFF" | b"RF64") || head.get(8..12)? != b"WAVE" {
+        return None;
+    }
+    let mut at = 12;
+    while at + 8 <= head.len() {
+        let size = u32::from_le_bytes(head[at + 4..at + 8].try_into().ok()?) as usize;
+        if &head[at..at + 4] == b"fmt " {
+            let channels = u16::from_le_bytes(head.get(at + 10..at + 12)?.try_into().ok()?);
+            let rate = u32::from_le_bytes(head.get(at + 12..at + 16)?.try_into().ok()?);
+            return Some((channels, rate));
+        }
+        at += 8 + size + (size & 1);
+    }
+    None
+}
+
 /// dee_ddp_encoder.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Ddp {
@@ -283,6 +357,8 @@ pub struct Ddp {
     /// Surround phase-90 shift; off is the change.
     pub phase90: Option<bool>,
     pub core_type: Option<CoreType>,
+    /// WAV inputs that hold only their layout's channels.
+    pub wav_slots: Vec<WavSlots>,
 }
 
 /// dee_ddpjoc_encoder.
@@ -377,6 +453,8 @@ pub struct Dthd {
     pub compose: Option<String>,
     /// Presentation layouts, `[TIER=]SPEC` entries joined by `;` (dshim_profiles::dthd_layouts).
     pub layout: Option<String>,
+    /// WAV inputs that hold only their layout's channels.
+    pub wav_slots: Vec<WavSlots>,
     /// Keep DEE's own zero-fill code instead of the faster one (Windows build).
     pub zero_fill_original: bool,
 }
@@ -530,6 +608,7 @@ impl Levers {
             "DDP_LFE_ROUTE" => p.lfe_route = flag(key, v)?,
             "DDP_EMDF_OFF" => p.emdf_off = flag(key, v)?,
             "DDP_RATES" => p.rates = Some(rates(key, v)?),
+            "DDP_WAV_SLOTS" => p.wav_slots = WavSlots::parse(key, v)?,
             "DDP_PHASE90" => p.phase90 = Some(switch(key, v)?),
             "DDP_CORE_TYPE" => p.core_type = Some(CoreType::parse(key, v)?),
             "DDPJOC_LAYER" => j.layer = Some(Layer::parse(key, v)?),
@@ -553,6 +632,7 @@ impl Levers {
             "DTHD_TARGET" => t.target = Some(Target::parse(key, v)?),
             "DTHD_COMPOSE" => t.compose = Some(v.to_string()),
             "DTHD_LAYOUT" => t.layout = Some(v.to_string()),
+            "DTHD_WAV_SLOTS" => t.wav_slots = WavSlots::parse(key, v)?,
             "DTHD_ZERO_FILL_ORIGINAL" => t.zero_fill_original = flag(key, v)?,
             "DDPDEC_LAYOUT" => self.ddpdec.layout = Some(DecoderLayout::parse(key, v)?),
             "LOUDNESS_LAYOUT" => self.loudness.layout = Some(MeterLayout::parse(key, v)?),
@@ -608,6 +688,7 @@ impl Levers {
         put("DDP_RATES", rate(p.rates));
         put("DDP_PHASE90", sw(p.phase90));
         put("DDP_CORE_TYPE", p.core_type.map(|v| v.name().to_string()));
+        put("DDP_WAV_SLOTS", WavSlots::text(&p.wav_slots));
         put("DDPJOC_LAYER", j.layer.map(|v| v.name().to_string()));
         put("DDPJOC_CORE", j.core.map(|v| v.name().to_string()));
         put("DDPJOC_RATES", rate(j.rates));
@@ -635,6 +716,7 @@ impl Levers {
         put("DTHD_TARGET", t.target.map(|v| v.name().to_string()));
         put("DTHD_COMPOSE", t.compose.clone());
         put("DTHD_LAYOUT", t.layout.clone());
+        put("DTHD_WAV_SLOTS", WavSlots::text(&t.wav_slots));
         put("DTHD_ZERO_FILL_ORIGINAL", fl(t.zero_fill_original));
         put(
             "DDPDEC_LAYOUT",
@@ -739,6 +821,7 @@ mod tests {
                     "DTHD_TARGET" => "dvd-a",
                     "DTHD_COMPOSE" => "/x/tmpl\\with\nnewline.mll",
                     "DTHD_LAYOUT" => "8ch=L,R,C,-,Ls,Rs,Cs;2ch=1.0",
+                    "DDP_WAV_SLOTS" | "DTHD_WAV_SLOTS" => "8:0,1,2,4:/x/a:b.wav\n6:0,1:/x/c.wav",
                     "DDPDEC_LAYOUT" => "native",
                     "LOUDNESS_LAYOUT" => "4.0",
                     _ => "on",

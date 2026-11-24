@@ -12,6 +12,30 @@ pub static PROFILE: Profile = Profile {
 
 static SITES: &[Site] = &[
     Site {
+        name: "dthd.wav.input.count_check",
+        va: 0x140470160,
+        kind: Kind::HookLoad {
+            steal: 16,
+            load_offset: 9,
+        },
+        expect: "40 53 48 81 ec c0 01 00 00 48 8b 05 10 6f 1e 01",
+        note: "Input check (count, allowed counts): throws \"Unsupported channel count\".",
+    },
+    Site {
+        name: "dthd.wav.source.open",
+        va: 0x140448880,
+        kind: Kind::Hook { steal: 19 },
+        expect: "48 89 5c 24 20 55 56 57 41 56 41 57 48 81 ec a0 00 00 00",
+        note: "WAV file source constructor (this, path, start, end); channel count at +8.",
+    },
+    Site {
+        name: "dthd.wav.source.read",
+        va: 0x140449ED0,
+        kind: Kind::Hook { steal: 15 },
+        expect: "48 89 5c 24 10 48 89 74 24 18 57 48 83 ec 40",
+        note: "WAV file source read (this, float buffers per channel, max frames).",
+    },
+    Site {
         name: "dthd.perf.zero_fill",
         va: 0x14043836c,
         kind: Kind::Patch {

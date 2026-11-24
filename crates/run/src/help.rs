@@ -140,8 +140,9 @@ INPUT
     dee_shim ddp_encoder --layout 6.1/eac3 --bitrate 1024 -- --input-format wav -i in.wav -o out.ec3
   A multichannel WAV holds the layout's input slots in order (see --list), with a silent
   channel for each '-' slot: DEE codes only the listed slots but measures loudness over every
-  channel, so audio in a '-' slot changes the stream's dialnorm. With --input-format wav_list
-  give one mono WAV per slot and '-' for an empty one.
+  channel, so audio in a '-' slot changes the stream's dialnorm. With --unpadded-wav the
+  WAV holds only the layout's channels, in that order: four channels L R C S for 4.0. With
+  --input-format wav_list give one mono WAV per slot and '-' for an empty one.
 
 LEVERS (--set KEY=VAL; the switches above set the others)
   DDP_ACMOD=<0..28>           core parameter 4, the layout (acmod) code --layout picks
@@ -214,6 +215,8 @@ LAYOUT
   It names the slots L R (2ch), L R C LFE Ls Rs (6ch), or those and Lrs Rrs (8ch).
   --layout [TIER=]NAME renames one presentation's slots, - leaving a slot out; NAME is a layout
   from --list or a comma list of slot labels, and without TIER it is for the top presentation.
+  With --unpadded-wav a presentation's WAV holds only its layout's channels, in that order:
+  four channels L R C Cs for 4.0 in an 8ch presentation.
   Repeat it for another presentation. A downmix presentation takes its outputs from the layout
   and is mixed again from the presentation above it with DEE's own coefficients. The engine
   judges the result against the disc type.

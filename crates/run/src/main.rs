@@ -19,6 +19,7 @@ mod help;
 mod host;
 mod paths;
 mod preflight;
+mod wav_slots;
 use help::{DDPDEC_HELP, DDPJOC_HELP, DDP_HELP, DTHD_HELP, DTHD_KEEP_QUIET, LOUDNESS_HELP};
 
 #[derive(Parser)]
@@ -285,6 +286,10 @@ struct DdpArgs {
     #[command(flatten)]
     recipe: LayoutArgs,
 
+    /// The WAV holds only the layout's channels, in order: L R C S for 4.0
+    #[arg(long, requires = "layout")]
+    unpadded_wav: bool,
+
     /// 5.1 core downmix for 7.0/7.1 layouts, including /eac3
     ///
     /// Native default: pliix. Standard folds each rear channel into its matching surround;
@@ -360,6 +365,10 @@ struct DthdArgs {
         help_heading = "Layout"
     )]
     layout: Vec<String>,
+
+    /// A WAV holds only its layout's channels, in order: L R C Cs for 4.0
+    #[arg(long, requires = "layout", help_heading = "Layout")]
+    unpadded_wav: bool,
 
     /// List the layouts, then exit
     #[arg(long, help_heading = "Layout")]
@@ -620,6 +629,9 @@ fn dthd_list() {
         let line = format!("  {:<width$} {row}{fits}  {}", l.name, l.note);
         println!("{}", line.trim_end());
     }
+    println!(
+        "\n  With --unpadded-wav the WAV holds only its layout's channels, without the - slots."
+    );
 }
 
 /// Check a dthd --drc entry, `[TYPE=]PROFILE`.
@@ -1144,6 +1156,7 @@ fn run() -> i32 {
         }
         if exe == "dee_ddp_encoder" {
             println!("\n  The layouts up to 5.1 are also Dolby Digital (AC-3): add --mode dd.");
+            println!("  With --unpadded-wav the WAV holds only the layout's channels, without the - slots.");
         }
         let r = rates::render(exe, 2, 92);
         if !r.is_empty() {
@@ -1416,6 +1429,30 @@ fn run() -> i32 {
             return 2;
         }
     };
+
+    // --unpadded-wav: a WAV with only its layout's channels is spread over the input slots.
+    let unpadded = match tool {
+        Tool::Dthd(a) if a.unpadded_wav => {
+            wav_slots::dthd(&native, &a.layout.join(";")).map(|w| ("DTHD_WAV_SLOTS", w))
+        }
+        Tool::Ddp(a) if a.unpadded_wav => {
+            let slots = a
+                .recipe
+                .layout
+                .as_deref()
+                .and_then(|name| recipes::find(exe, name));
+            wav_slots::ddp(&native, slots.map_or("", |r| r.inputs)).map(|w| ("DDP_WAV_SLOTS", w))
+        }
+        _ => Ok(("", Vec::new())),
+    };
+    match unpadded {
+        Ok((key, list)) => {
+            if let Some(text) = dshim_levers::WavSlots::text(&list) {
+                env.insert(key.to_string(), text);
+            }
+        }
+        Err(error) => usage_error(tool, ErrorKind::InvalidValue, error),
+    }
 
     // --set last, so a raw lever wins over the recipe, --bitrate and the switches.
     for (k, v) in parse_set(&run.set) {

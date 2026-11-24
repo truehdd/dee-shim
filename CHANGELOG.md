@@ -3,6 +3,13 @@
 Each release has a section headed by its tag. The release workflow publishes that section as the
 release notes and refuses to run without it, so write it before running the workflow.
 
+## Unreleased
+
+- New `--unpadded-wav` for `ddp_encoder` and `dthd_encoder`: with `--layout`, the WAV holds only
+  the layout's channels, in order, instead of one channel per input slot: four channels for
+  4.0, where DEE wants six or eight with silent ones. The result is the same as from the padded
+  file (#7).
+
 ## v0.3.0
 
 - `ddp_encoder`: the help, `--list` and the README now say that `--mode dd` codes every layout

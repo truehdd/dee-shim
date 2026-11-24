@@ -12,6 +12,27 @@ pub static PROFILE: Profile = Profile {
 
 static SITES: &[Site] = &[
     Site {
+        name: "ddp.wav.source_info",
+        va: 0x140345DE0,
+        kind: Kind::Hook { steal: 16 },
+        expect: "40 55 53 56 57 41 54 41 56 41 57 48 8d 6c 24 d9",
+        note: "getSourceInfo (result, input, reporter): the inputs' channel counts and rates.",
+    },
+    Site {
+        name: "ddp.wav.source.open",
+        va: 0x14039DFE0,
+        kind: Kind::Hook { steal: 19 },
+        expect: "48 89 5c 24 20 55 56 57 41 56 41 57 48 81 ec a0 00 00 00",
+        note: "WAV file source constructor (this, path, start, end); channel count at +8.",
+    },
+    Site {
+        name: "ddp.wav.source.read",
+        va: 0x14039F530,
+        kind: Kind::Hook { steal: 15 },
+        expect: "48 89 5c 24 10 48 89 74 24 18 57 48 83 ec 40",
+        note: "WAV file source read (this, float buffers per channel, max frames).",
+    },
+    Site {
         name: "ddp.core.surround_downmix_type",
         va: 0x14094DDF0,
         kind: Kind::Patch {

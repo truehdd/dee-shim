@@ -27,7 +27,7 @@ pub fn absolute(path: &str, cwd: &Path) -> String {
 }
 
 /// The entries of a wav_list value; the colon of a drive or a URI scheme does not split.
-fn split_list(value: &str) -> Vec<&str> {
+pub fn split_list(value: &str) -> Vec<&str> {
     let mut paths = Vec::new();
     let mut start = 0;
     for (index, byte) in value.bytes().enumerate() {
@@ -75,26 +75,9 @@ fn input_format(arguments: &[String]) -> Option<&str> {
     value(arguments, Some("-f"), "--input-format")
 }
 
-/// The sample rate in a WAV (RIFF, RIFX not handled, or RF64) header's fmt chunk.
+/// The sample rate in a WAV header.
 fn wav_rate(path: &str) -> Option<u32> {
-    use std::io::Read;
-    let mut head = vec![0u8; 1 << 16];
-    let n = std::fs::File::open(path).ok()?.read(&mut head).ok()?;
-    let head = &head[..n];
-    if !matches!(head.get(..4)?, b"RIFF" | b"RF64") || head.get(8..12)? != b"WAVE" {
-        return None;
-    }
-    let mut at = 12;
-    while at + 8 <= head.len() {
-        let size = u32::from_le_bytes(head[at + 4..at + 8].try_into().ok()?) as usize;
-        if &head[at..at + 4] == b"fmt " {
-            return Some(u32::from_le_bytes(
-                head.get(at + 12..at + 16)?.try_into().ok()?,
-            ));
-        }
-        at += 8 + size + (size & 1);
-    }
-    None
+    dshim_levers::wav_format(path).map(|(_, rate)| rate)
 }
 
 /// DEE measures loudness at 48 kHz, and its resampler has no 176.4 kHz to 48 kHz pair, so a

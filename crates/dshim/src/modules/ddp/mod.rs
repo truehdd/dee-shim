@@ -13,4 +13,5 @@ pub fn run_all(res: &Resolver, log: &mut dyn Write) {
     rates::install(res, log);
     phase90::install(res, log);
     core_type::install(res, log);
+    super::wav_slots::install(res, "ddp", &crate::levers().ddp.wav_slots, log);
 }
