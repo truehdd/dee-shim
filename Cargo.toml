@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Rainbaby"]
 edition = "2021"
 # The oldest Rust that builds and runs it (CI's msrv job). On Linux it is also the first release

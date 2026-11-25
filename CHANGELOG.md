@@ -3,7 +3,7 @@
 Each release has a section headed by its tag. The release workflow publishes that section as the
 release notes and refuses to run without it, so write it before running the workflow.
 
-## Unreleased
+## v0.4.0
 
 - New `--unpadded-wav` for `ddp_encoder` and `dthd_encoder`: with `--layout`, the WAV holds only
   the layout's channels, in order, instead of one channel per input slot: four channels for
