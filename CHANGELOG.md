@@ -3,6 +3,12 @@
 Each release has a section headed by its tag. The release workflow publishes that section as the
 release notes and refuses to run without it, so write it before running the workflow.
 
+## Unreleased
+
+- `ddp_encoder --unpadded-wav` also takes raw PCM with only the layout's channels
+  (`pcm_s24le:channels=4:...` for 4.0), from a file or through `named_pipe://`. The result is
+  the same as from the padded input.
+
 ## v0.4.0
 
 - New `--unpadded-wav` for `ddp_encoder` and `dthd_encoder`: with `--layout`, the WAV holds only

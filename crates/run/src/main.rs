@@ -286,7 +286,7 @@ struct DdpArgs {
     #[command(flatten)]
     recipe: LayoutArgs,
 
-    /// The WAV holds only the layout's channels, in order: L R C S for 4.0
+    /// The WAV or raw PCM input holds only the layout's channels, in order: L R C S for 4.0
     #[arg(long, requires = "layout")]
     unpadded_wav: bool,
 
@@ -1430,7 +1430,8 @@ fn run() -> i32 {
         }
     };
 
-    // --unpadded-wav: a WAV with only its layout's channels is spread over the input slots.
+    // --unpadded-wav: a WAV or raw PCM input with only its layout's channels is spread over the
+    // input slots.
     let unpadded = match tool {
         Tool::Dthd(a) if a.unpadded_wav => {
             wav_slots::dthd(&native, &a.layout.join(";")).map(|w| ("DTHD_WAV_SLOTS", w))
@@ -1441,7 +1442,16 @@ fn run() -> i32 {
                 .layout
                 .as_deref()
                 .and_then(|name| recipes::find(exe, name));
-            wav_slots::ddp(&native, slots.map_or("", |r| r.inputs)).map(|w| ("DDP_WAV_SLOTS", w))
+            let inputs = slots.map_or("", |r| r.inputs);
+            match wav_slots::ddp_pcm(&mut native, inputs) {
+                Ok(list) => {
+                    if let Some(text) = dshim_levers::PcmSlots::text(&list) {
+                        env.insert("DDP_PCM_SLOTS".to_string(), text);
+                    }
+                }
+                Err(error) => usage_error(tool, ErrorKind::InvalidValue, error),
+            }
+            wav_slots::ddp(&native, inputs).map(|w| ("DDP_WAV_SLOTS", w))
         }
         _ => Ok(("", Vec::new())),
     };

@@ -145,6 +145,11 @@ INPUT
     dee_shim ddp_encoder --layout 4.0 --unpadded-wav -- --input-format wav -i in.wav -o out.ec3
   With --input-format wav_list give one mono WAV per slot and '-' for an empty one, with or
   without the switch.
+  Raw PCM follows the same rule by the channels= of its format, also through a pipe, which DEE
+  takes only as raw PCM (a pipe needs streaming=1 and sample_count):
+    dee_shim ddp_encoder --layout 4.0 --unpadded-wav -- --input-format \\
+        pcm_s24le:sample_rate=48000:channels=4:streaming=1:sample_count=N \\
+        -i named_pipe:///tmp/in -o out.ec3
 
 LEVERS (--set KEY=VAL; the switches above set the others)
   DDP_ACMOD=<0..28>           core parameter 4, the layout (acmod) code --layout picks

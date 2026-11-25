@@ -69,6 +69,7 @@ macro_rules! stub {
         );
     };
 }
+pub(super) use stub;
 #[cfg(target_os = "macos")]
 stub!("_dshim_wav_check_stub", ours_count, pass, CHECK);
 #[cfg(target_os = "macos")]

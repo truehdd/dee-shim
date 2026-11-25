@@ -20,6 +20,7 @@ pub const KEYS: &[&str] = &[
     "DDP_PHASE90",
     "DDP_CORE_TYPE",
     "DDP_WAV_SLOTS",
+    "DDP_PCM_SLOTS",
     // dee_ddpjoc_encoder
     "DDPJOC_LAYER",
     "DDPJOC_CORE",
@@ -314,6 +315,39 @@ impl WavSlots {
     }
 }
 
+/// A raw PCM input that holds only its layout's channels: [`WavSlots`] with the bytes of one
+/// sample in front, `BYTES:TOTAL:SLOT,SLOT,..:PATH`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PcmSlots {
+    pub bytes: usize,
+    pub slots: WavSlots,
+}
+
+impl PcmSlots {
+    fn parse(key: &str, text: &str) -> Result<Vec<PcmSlots>, String> {
+        let bad = || format!("{key}={text:?}: expected BYTES:TOTAL:SLOT,SLOT,..:PATH per line");
+        text.lines()
+            .map(|line| {
+                let (bytes, rest) = line.split_once(':').ok_or_else(bad)?;
+                let bytes = bytes.parse().ok().filter(|b| matches!(b, 2..=4));
+                let slots = WavSlots::parse(key, rest).map_err(|_| bad())?.pop();
+                Ok(PcmSlots {
+                    bytes: bytes.ok_or_else(bad)?,
+                    slots: slots.ok_or_else(bad)?,
+                })
+            })
+            .collect()
+    }
+
+    pub fn text(list: &[PcmSlots]) -> Option<String> {
+        let line = |p: &PcmSlots| {
+            let slots = WavSlots::text(std::slice::from_ref(&p.slots)).unwrap_or_default();
+            format!("{}:{slots}", p.bytes)
+        };
+        (!list.is_empty()).then(|| list.iter().map(line).collect::<Vec<_>>().join("\n"))
+    }
+}
+
 /// The channel count and sample rate in a WAV (RIFF, RIFX not handled, or RF64) header's fmt
 /// chunk.
 pub fn wav_format(path: &str) -> Option<(u16, u32)> {
@@ -359,6 +393,8 @@ pub struct Ddp {
     pub core_type: Option<CoreType>,
     /// WAV inputs that hold only their layout's channels.
     pub wav_slots: Vec<WavSlots>,
+    /// Raw PCM inputs that hold only their layout's channels.
+    pub pcm_slots: Vec<PcmSlots>,
 }
 
 /// dee_ddpjoc_encoder.
@@ -609,6 +645,7 @@ impl Levers {
             "DDP_EMDF_OFF" => p.emdf_off = flag(key, v)?,
             "DDP_RATES" => p.rates = Some(rates(key, v)?),
             "DDP_WAV_SLOTS" => p.wav_slots = WavSlots::parse(key, v)?,
+            "DDP_PCM_SLOTS" => p.pcm_slots = PcmSlots::parse(key, v)?,
             "DDP_PHASE90" => p.phase90 = Some(switch(key, v)?),
             "DDP_CORE_TYPE" => p.core_type = Some(CoreType::parse(key, v)?),
             "DDPJOC_LAYER" => j.layer = Some(Layer::parse(key, v)?),
@@ -689,6 +726,7 @@ impl Levers {
         put("DDP_PHASE90", sw(p.phase90));
         put("DDP_CORE_TYPE", p.core_type.map(|v| v.name().to_string()));
         put("DDP_WAV_SLOTS", WavSlots::text(&p.wav_slots));
+        put("DDP_PCM_SLOTS", PcmSlots::text(&p.pcm_slots));
         put("DDPJOC_LAYER", j.layer.map(|v| v.name().to_string()));
         put("DDPJOC_CORE", j.core.map(|v| v.name().to_string()));
         put("DDPJOC_RATES", rate(j.rates));
@@ -822,6 +860,7 @@ mod tests {
                     "DTHD_COMPOSE" => "/x/tmpl\\with\nnewline.mll",
                     "DTHD_LAYOUT" => "8ch=L,R,C,-,Ls,Rs,Cs;2ch=1.0",
                     "DDP_WAV_SLOTS" | "DTHD_WAV_SLOTS" => "8:0,1,2,4:/x/a:b.wav\n6:0,1:/x/c.wav",
+                    "DDP_PCM_SLOTS" => "3:6:0,1,2,4:named_pipe:///x/in\n2:8:0,1:/x/c.pcm",
                     "DDPDEC_LAYOUT" => "native",
                     "LOUDNESS_LAYOUT" => "4.0",
                     _ => "on",

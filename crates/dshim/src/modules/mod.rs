@@ -10,6 +10,8 @@
 #[cfg(any(feature = "dthd", feature = "ddpjoc"))]
 mod cluster;
 pub mod common;
+#[cfg(feature = "ddp")]
+mod pcm_slots;
 #[cfg(any(feature = "dthd", feature = "ddpjoc"))]
 mod timing;
 #[cfg(any(feature = "dthd", feature = "ddp"))]

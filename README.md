@@ -140,6 +140,7 @@ is coded. `--list` prints each layout's order.
 | `wav` | one channel per input slot, silent for each `-` slot | only the layout's channels |
 | `wav` with `--unpadded-wav` | only the layout's channels | (always so) |
 | `wav_list` | one mono WAV per slot, `-` for an empty slot | one mono WAV per channel |
+| raw PCM (`ddp_encoder`, `measure_loudness`) | as `wav`, by the format's `channels=`; `--unpadded-wav` applies | only the layout's channels |
 
 4.0 in `ddp_encoder` has the slots `L R C - S -`: a six-channel WAV with two silent channels, or
 with `--unpadded-wav` a four-channel one, which `measure_loudness --layout 4.0` takes as it is.
@@ -154,6 +155,18 @@ dee_shim ddp_encoder --layout 4.0 -- \
 
 - **`ddp_encoder`** codes only the listed slots but measures loudness over every channel, so
   audio in a `-` slot changes the stream's dialnorm.
+- **Pipes.** DEE reads a pipe (`-i named_pipe://PATH`) only as raw PCM, with `streaming=1` and
+  `sample_count` in the format, so `ddp_encoder` and `measure_loudness` take one and
+  `dthd_encoder`, which has no raw PCM input, does not. `--unpadded-wav` works there too:
+
+  ```sh
+  dee_shim ddp_encoder --layout 4.0 --unpadded-wav -- --input-format \
+    pcm_s24le:sample_rate=48000:channels=4:streaming=1:sample_count=N \
+    -i named_pipe:///tmp/in -o out.ec3
+  ```
+
+  For output, `ddp_encoder`, `ddpjoc_encoder` and `ddp_decoder` (raw PCM only) write to
+  `-o named_pipe://PATH`; `dthd_encoder` does not.
 - **`dthd_encoder`** takes one input per independent presentation, each padded or not. Two
   unpadded inputs with the same channel count are refused; pad one of them.
 - **`measure_loudness`** refuses an input of another channel count than the layout's, 5.1 too,

@@ -1,7 +1,7 @@
 //! WAV inputs that hold only their layout's channels: the DTHD_WAV_SLOTS and DDP_WAV_SLOTS
 //! levers.
 
-use dshim_levers::{wav_format, WavSlots};
+use dshim_levers::{wav_format, PcmSlots, WavSlots};
 use dshim_profiles::dthd_layouts::{self, Tier};
 
 /// One input of the tool: what the messages call it, its files, how many input slots it has
@@ -156,6 +156,78 @@ pub fn ddp(native: &[String], slots: &str) -> Result<Vec<WavSlots>, String> {
     }])
 }
 
+/// dee_ddp_encoder with a raw PCM input (`pcm_s24le:channels=4:..`) of only the layout's
+/// channels. DEE takes the count from the format, so the format gets the padded count, and a
+/// file gets its `sample_count`, which DEE would work out from the padded count.
+pub fn ddp_pcm(native: &mut [String], slots: &str) -> Result<Vec<PcmSlots>, String> {
+    let last = |names: &[&str]| {
+        (0..native.len())
+            .rev()
+            .find(|&index| option(&native[index], native.get(index + 1), names).is_some())
+    };
+    let (Some(at), Some(input)) = (last(&["-f", "--input-format"]), last(&["-i", "--input"]))
+    else {
+        return Ok(Vec::new());
+    };
+    let value = |at: usize| match native[at].split_once('=') {
+        Some((_, value)) if native[at].starts_with("--") => value.to_owned(),
+        _ => native[at + 1].clone(),
+    };
+    let (format, path) = (value(at), value(input));
+    let mut options: Vec<String> = format.split(':').map(str::to_owned).collect();
+    let bytes = match options[0].as_str() {
+        "pcm_s16le" => 2,
+        "pcm_s24le" => 3,
+        "pcm_f32le" => 4,
+        _ => return Ok(Vec::new()),
+    };
+    let count = |option: &String| option.strip_prefix("channels=")?.parse::<usize>().ok();
+    let Some((channels, count)) = options
+        .iter()
+        .enumerate()
+        .find_map(|(i, o)| Some((i, count(o)?)))
+    else {
+        return Ok(Vec::new());
+    };
+    let labels: Vec<&str> = slots.split_whitespace().collect();
+    let named: Vec<usize> = (0..labels.len()).filter(|i| labels[*i] != "-").collect();
+    if count == labels.len() {
+        return Ok(Vec::new());
+    }
+    if count != named.len() {
+        return Err(format!(
+            "the input has {count} channels; it takes {} (one per input slot) or {} (the \
+             layout's channels in order)",
+            labels.len(),
+            named.len()
+        ));
+    }
+    options[channels] = format!("channels={}", labels.len());
+    let file = std::fs::metadata(&path).ok().filter(|m| m.is_file());
+    if let (Some(file), false) = (file, format.contains(":sample_count=")) {
+        options.push(format!(
+            "sample_count={}",
+            file.len() / (count * bytes) as u64
+        ));
+    }
+    let padded = options.join(":");
+    native[at] = match native[at].split_once('=') {
+        Some((name, _)) if native[at].starts_with("--") => format!("{name}={padded}"),
+        _ => {
+            native[at + 1] = padded;
+            native[at].clone()
+        }
+    };
+    Ok(vec![PcmSlots {
+        bytes,
+        slots: WavSlots {
+            total: labels.len(),
+            slots: named,
+            path,
+        },
+    }])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -190,6 +262,39 @@ mod tests {
             .unwrap()
             .is_empty());
         assert!(ddp(&args(&["-f", "wav", "-i", &four]), "L R C LFE Ls Rs").is_err());
+
+        // Raw PCM names its count in the format, which gets the padded one.
+        let pcm = dir.path().join("four.pcm");
+        std::fs::write(&pcm, [0u8; 4 * 3 * 10]).unwrap();
+        let pcm = pcm.to_string_lossy().into_owned();
+        let mut native = args(&[
+            "--input-format=pcm_s24le:channels=4:sample_rate=48000",
+            "-i",
+            &pcm,
+        ]);
+        let found = ddp_pcm(&mut native, "L R C - S -").unwrap();
+        assert_eq!(
+            (found[0].bytes, found[0].slots.slots.as_slice()),
+            (3, &[0, 1, 2, 4][..])
+        );
+        assert_eq!(
+            native[0],
+            "--input-format=pcm_s24le:channels=6:sample_rate=48000:sample_count=10"
+        );
+        let pipe = "named_pipe:///x/in";
+        let mut native = args(&[
+            "-i",
+            pipe,
+            "--input-format",
+            "pcm_s16le:channels=4:streaming=1",
+        ]);
+        assert_eq!(
+            ddp_pcm(&mut native, "L R C - S -").unwrap()[0].slots.path,
+            pipe
+        );
+        assert_eq!(native[3], "pcm_s16le:channels=6:streaming=1");
+        let mut native = args(&["-f", "pcm_s16le:channels=5", "-i", pipe]);
+        assert!(ddp_pcm(&mut native, "L R C - S -").is_err());
 
         let run = |layout: &str, rest: &[&str]| {
             let mut native = args(&["--presentation", "8ch", "-f", "wav", "-i", &four]);

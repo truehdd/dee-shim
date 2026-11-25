@@ -33,6 +33,20 @@ static SITES: &[Site] = &[
         note: "WAV file source read (this, float buffers per channel, max frames).",
     },
     Site {
+        name: "ddp.stream.read",
+        va: 0x140301A70,
+        kind: Kind::Hook { steal: 15 },
+        expect: "48 89 5c 24 08 48 89 74 24 10 57 48 83 ec 20",
+        note: "Input stream read (stream, buffer, bytes) -> bytes read; the stream's name at +24.",
+    },
+    Site {
+        name: "ddp.stream.seek",
+        va: 0x140301BB0,
+        kind: Kind::Hook { steal: 15 },
+        expect: "48 89 5c 24 08 48 89 74 24 10 57 48 83 ec 20",
+        note: "Input stream seek (stream, offset, whence).",
+    },
+    Site {
         name: "ddp.core.surround_downmix_type",
         va: 0x14094DDF0,
         kind: Kind::Patch {
