@@ -169,7 +169,8 @@ struct LayoutArgs {
 
     /// Encoder mode, the binary's -e, hidden modes included
     ///
-    /// Overrides the layout's mode and a native -e. Sub-options pass through (ddp:lfe_on=0)
+    /// Overrides the layout's mode, as a native -e mode does. Sub-options pass through
+    /// (ddp:lfe_on=0)
     #[arg(long, value_name = "MODE")]
     mode: Option<String>,
 
@@ -1210,7 +1211,8 @@ fn run() -> i32 {
     }
 
     // We own `-e` and `--data-rate`: native copies are stripped and ours goes first. A native
-    // mode that differs from ours is refused; a native -e keeps its sub-options, under --mode's.
+    // mode overrides the layout's as --mode does, and is refused if it differs from --mode; a
+    // native -e keeps its sub-options, under --mode's.
     let native_e = native_mode(&run.native);
     let (native_base, mut native_opts) = split_mode(native_e.as_deref());
     let mut rewrite = false;
@@ -1234,25 +1236,21 @@ fn run() -> i32 {
             rewrite = true;
         }
     }
-    let ours = layout_mode(recipe.and_then(|r| r.mode.as_deref()), recipe_mode);
+    let mode = recipe.and_then(|r| r.mode.as_deref());
+    let mode = mode.or(native_base.as_deref().filter(|_| recipe_mode.is_some()));
+    let ours = layout_mode(mode, recipe_mode);
     let final_mode = if ours.is_some() || rewrite {
         let (base, own) = split_mode(ours.as_deref());
         let key = |o: &str| o.split('=').next().unwrap_or(o).to_owned();
         let own_keys: Vec<String> = own.iter().map(|o| key(o)).collect();
         if let (Some(b), Some(n)) = (base.as_deref(), native_base.as_deref()) {
             if b != n {
-                let source = if recipe.and_then(|r| r.mode.as_ref()).is_some() {
-                    "--mode".to_owned()
-                } else {
-                    format!(
-                        "--layout {}",
-                        recipe.and_then(|r| r.layout.as_deref()).unwrap_or("")
-                    )
-                };
                 usage_error(
                     tool,
                     ErrorKind::ArgumentConflict,
-                    format!("{source} runs mode {b} but the native -e names {n}; give one, or the same mode"),
+                    format!(
+                        "--mode names {b} but the native -e names {n}; give one, or the same mode"
+                    ),
                 );
             }
         }

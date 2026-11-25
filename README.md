@@ -198,8 +198,9 @@ does not name the stream it produces.
 - **`--mode dd`** is refused with the extended layouts, as Dolby Digital has no dependent
   substream.
 - **A native `-e`** may still be given. Its sub-options are kept, so `-e ddp:drc_profile=none`
-  works with any `ddp_encoder` layout. A mode named in it must match the layout's mode or
-  `--mode`, or dee_shim refuses the run; sub-options given with `--mode` win over its own.
+  works with any `ddp_encoder` layout. A mode named in it overrides the layout's mode as
+  `--mode` does (`-e dd` is `--mode dd`); if both are given they must agree, and sub-options
+  given with `--mode` win over its own.
 - **Hidden modes.** `dee_ddp_encoder` has two modes its documentation omits: `bluray` and
   `bluray_secondary` (one E-AC-3 independent substream, at most 256 kbps).
 - **Loudness in `bluray` mode.** DEE refuses loudness correction there, so pass

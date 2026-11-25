@@ -258,3 +258,17 @@ fn the_tool_beside_dee_shim_is_found_without_moving_the_caller() {
         "{stdout}"
     );
 }
+
+#[test]
+fn a_native_mode_overrides_the_layouts_mode() {
+    let binary = env!("CARGO_BIN_EXE_dee_shim");
+    let dry = ["ddp_encoder", "--binary", binary, "--dry-run", "--layout"];
+    let result = run(&[&dry[..], &["5.0", "--", "-e", "dd"]].concat());
+    assert!(result.status.success(), "{:?}", result.stderr);
+    let stdout = String::from_utf8(result.stdout).unwrap();
+    assert!(stdout.contains("-e dd:lfe_on=0"), "{stdout}");
+    usage_error(
+        &[&dry[..], &["5.0", "--mode", "ddp", "--", "-e", "dd"]].concat(),
+        "--mode names ddp but the native -e names dd",
+    );
+}

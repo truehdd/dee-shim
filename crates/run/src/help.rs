@@ -61,7 +61,7 @@ pub fn mode_arg(arg: Arg, tool: &str) -> Arg {
         (
             "Native mode: ddpjoc (streaming, default) or bluray (extended backbone)",
             "Native -e mode: ddpjoc for streaming, bluray for extended backbones. A layout supplies \
-             its mode and --mode overrides it. A native -e must name the same mode or none; its \
+             its mode and --mode overrides it. A native -e mode does the same, and must agree with --mode; its \
              sub-options are kept. The \
              /eac3 layouts run with bluray, whose AC-3 core dee_shim replaces. Sub-options pass \
              through, e.g. bluray:drc_profile_line=none.",
@@ -70,7 +70,7 @@ pub fn mode_arg(arg: Arg, tool: &str) -> Arg {
         (
             "Native mode: dd, ddp, bluray or bluray_secondary",
             "Overrides the layout's mode and keeps the layout's sub-options. dd codes the layouts up \
-             to 5.1 as Dolby Digital (AC-3). A native -e must name the same mode or none; its \
+             to 5.1 as Dolby Digital (AC-3). A native -e mode does the same, and must agree with --mode; its \
              sub-options are kept. \
              Sub-options pass through, e.g. \
              ddp:lfe_on=0. The recipe's mode is the tested one; an override may be incompatible \
