@@ -68,6 +68,13 @@ static SITES: &[Site] = &[
         note: "Per-frame backbone fan-out; the hook forces the master backbone layout at state+0x34.",
     },
     Site {
+        name: "ddpjoc.core.delay_init",
+        va: 0xe10090,
+        kind: Kind::Hook { steal: 13 },
+        expect: "f3 0f 1e fa 41 55 66 0f ef c0 41 54 55",
+        note: "Per-channel delay setup, run before the fan-out and armed once by state+0x1E8; it reads the layout at state+0x34 and, for 7.1 (21), gives two channels 1280 samples less delay. The hook forces the layout first.",
+    },
+    Site {
         name: "ddpjoc.core.prog_mode11_ss0_kind",
         va: 0x1d244b4,
         kind: Kind::Patch { new: "00 00 00 00" },

@@ -68,6 +68,7 @@ type Fn6 = extern "C" fn(usize, usize, usize, usize, usize, usize) -> i64;
 
 // backbone layer
 static PE_TRAMP: AtomicUsize = AtomicUsize::new(0);
+static DI_TRAMP: AtomicUsize = AtomicUsize::new(0);
 const RENDER_7_1: i32 = 21;
 // 5.1.2 top-surround backbone (Lts/Rts): the render fan-out's code bitmask covers {19, 21, 28}
 // and the channel mask table has an entry for it.
@@ -100,13 +101,35 @@ extern "C" fn hook_pre_engine(
     a5: usize,
     a6: usize,
 ) -> i64 {
-    if a1 != 0 {
-        unsafe {
-            *((a1 + STATE_LAYOUT_MASTER_OFF) as *mut i32) = RENDER_TARGET.load(Ordering::Relaxed)
-        };
-    }
+    force_backbone(a1);
     let tr: Fn6 = unsafe { std::mem::transmute(PE_TRAMP.load(Ordering::Relaxed)) };
     tr(a1, a2, a3, a4, a5, a6)
+}
+
+/// The core's per-channel delay setup(state, ...), which runs before the fan-out in the same
+/// frame and only once (state+0x1E8 arms it). It reads state+0x34: for 7.1 (21) it gives the two
+/// channels behind the 7.1 surround path 1280 samples less delay, the latency of that path. The
+/// fan-out hook is too late for this read, so without this hook the setup sees 19 and the core
+/// surrounds come out 1280 samples late.
+extern "C" fn hook_delay_init(
+    a1: usize,
+    a2: usize,
+    a3: usize,
+    a4: usize,
+    a5: usize,
+    a6: usize,
+) -> i64 {
+    force_backbone(a1);
+    let tr: Fn6 = unsafe { std::mem::transmute(DI_TRAMP.load(Ordering::Relaxed)) };
+    tr(a1, a2, a3, a4, a5, a6)
+}
+
+fn force_backbone(state: usize) {
+    if state != 0 {
+        unsafe {
+            *((state + STATE_LAYOUT_MASTER_OFF) as *mut i32) = RENDER_TARGET.load(Ordering::Relaxed)
+        };
+    }
 }
 
 /// engine_check(cfg, state + 4): write the forced rate of this substream into cfg+120 first.
@@ -177,7 +200,8 @@ pub fn install(res: &Resolver, log: &mut dyn Write) {
     let joc = &crate::levers().ddpjoc;
 
     // A non-default backbone layer maps to (render code, frontend render_param4 site): 7.1 -> 21,
-    // 5.1.2-top -> 28. Both patch render_param4 and hook the outer core's per-frame process
+    // 5.1.2-top -> 28. Both patch render_param4 and force the layout in the core's delay setup
+    // (ddpjoc.core.delay_init), its first reader, and in the per-frame fan-out
     // (ddpjoc.core.render_fanout). The default 5.1.2 sets none.
     let backbone_target: Option<(i32, &str)> = match joc.layer {
         None | Some(Layer::L512) => None,
@@ -213,7 +237,7 @@ pub fn install(res: &Resolver, log: &mut dyn Write) {
         require_all(
             res,
             "backbone layer",
-            &[rp4, "ddpjoc.core.render_fanout"],
+            &[rp4, "ddpjoc.core.render_fanout", "ddpjoc.core.delay_init"],
             log,
         )
     });
@@ -262,6 +286,14 @@ pub fn install(res: &Resolver, log: &mut dyn Write) {
             &s[1],
             hook_pre_engine as *const () as usize,
             &PE_TRAMP,
+            log,
+        );
+        hook(
+            "backbone layer",
+            "ddpjoc.core.delay_init",
+            &s[2],
+            hook_delay_init as *const () as usize,
+            &DI_TRAMP,
             log,
         );
     }

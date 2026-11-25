@@ -12,6 +12,10 @@ release notes and refuses to run without it, so write it before running the work
   directory of that name, wrote the stream there and reported success.
 - A native `-e` that names a mode now overrides the layout's mode, as `--mode` does: `--layout
   4.0 -- -e dd` is `--layout 4.0 --mode dd`. It was refused before (#7).
+- `ddpjoc_encoder --layout 7.1` and `7.1/eac3`: the surrounds of the 5.1 core are no longer 1280
+  samples (26.7 ms) late. DEE's delay setup gives the 7.1 surround path 1280 samples less delay,
+  but it ran once, before dee_shim set the 7.1 layout, and took the 5.1.2 delays. A full 7.1
+  decode was not affected (#9).
 
 ## v0.4.0
 
