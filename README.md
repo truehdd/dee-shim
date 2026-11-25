@@ -49,7 +49,7 @@ Every feature works the same on macOS, Linux and Windows.
 | 31 layouts from 1+1 to 7.1, each with its input order and data rates | `--layout`, `--list` |
 | An E-AC-3 core in place of the AC-3 core for the extended layouts | `/eac3` |
 | Dolby Digital (AC-3) for every layout up to 5.1 | `--mode dd` |
-| A WAV with only the layout's channels, no silent ones | `--unpadded-wav` |
+| A WAV or raw PCM input with only the layout's channels, no silent ones | `--unpadded` |
 | A data rate per substream | `--bitrate R0:R1` |
 | The 5.1 core downmix of 7.0 and 7.1 | `--core-type` |
 | DEE's encoder mode chosen outright, native `-e` sub-options kept | `--mode` |
@@ -76,7 +76,7 @@ Every feature works the same on macOS, Linux and Windows.
 | DVD-A (FBB): 2ch at any rate, 6ch up to 96 kHz | `--target dvd-a` |
 | No disc rules: any rate at 2, 6 or 8 channels | `--target non-conformant-fba` |
 | Other speaker layouts per presentation | `--layout`, `--list` |
-| A WAV with only the layout's channels, no silent ones | `--unpadded-wav` |
+| A WAV with only the layout's channels, no silent ones | `--unpadded` |
 | A job authored from a JSON spec | `--compose` |
 | Your own job file | `--mll` |
 
@@ -138,15 +138,15 @@ is coded. `--list` prints each layout's order.
 | Input | `ddp_encoder`, `dthd_encoder` | `measure_loudness` |
 |---|---|---|
 | `wav` | one channel per input slot, silent for each `-` slot | only the layout's channels |
-| `wav` with `--unpadded-wav` | only the layout's channels | (always so) |
+| `wav` or raw PCM with `--unpadded` | only the layout's channels | (always so) |
 | `wav_list` | one mono WAV per slot, `-` for an empty slot | one mono WAV per channel |
-| raw PCM (`ddp_encoder`, `measure_loudness`) | as `wav`, by the format's `channels=`; `--unpadded-wav` applies | only the layout's channels |
+| raw PCM (`ddp_encoder`, `measure_loudness`) | as `wav`, by the format's `channels=` | only the layout's channels |
 
 4.0 in `ddp_encoder` has the slots `L R C - S -`: a six-channel WAV with two silent channels, or
-with `--unpadded-wav` a four-channel one, which `measure_loudness --layout 4.0` takes as it is.
+with `--unpadded` a four-channel one, which `measure_loudness --layout 4.0` takes as it is.
 
 ```sh
-dee_shim ddp_encoder --layout 4.0 --unpadded-wav -- \
+dee_shim ddp_encoder --layout 4.0 --unpadded -- \
   --input-format wav -i in.wav -o out.ec3
 
 dee_shim ddp_encoder --layout 4.0 -- \
@@ -157,16 +157,16 @@ dee_shim ddp_encoder --layout 4.0 -- \
   audio in a `-` slot changes the stream's dialnorm.
 - **Pipes.** DEE reads a pipe (`-i named_pipe://PATH`) only as raw PCM, with `streaming=1` and
   `sample_count` in the format, so `ddp_encoder` and `measure_loudness` take one and
-  `dthd_encoder`, which has no raw PCM input, does not. `--unpadded-wav` works there too:
+  `dthd_encoder`, which has no raw PCM input, does not. `--unpadded` works there too:
 
   ```sh
-  dee_shim ddp_encoder --layout 4.0 --unpadded-wav -- --input-format \
+  dee_shim ddp_encoder --layout 4.0 --unpadded -- --input-format \
     pcm_s24le:sample_rate=48000:channels=4:streaming=1:sample_count=N \
     -i named_pipe:///tmp/in -o out.ec3
   ```
 
   For output, `ddp_encoder`, `ddpjoc_encoder` and `ddp_decoder` (raw PCM only) write to
-  `-o named_pipe://PATH`; `dthd_encoder` does not.
+  `-o named_pipe://PATH`; `dthd_encoder` cannot, and `dee_shim` refuses it.
 - **`dthd_encoder`** takes one input per independent presentation, each padded or not. Two
   unpadded inputs with the same channel count are refused; pad one of them.
 - **`measure_loudness`** refuses an input of another channel count than the layout's, 5.1 too,

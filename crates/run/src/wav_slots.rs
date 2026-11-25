@@ -14,7 +14,7 @@ struct Input {
     named: Vec<usize>,
 }
 
-/// The inputs given with only their layout's channels (--unpadded-wav). Every other input must
+/// The inputs given with only their layout's channels (--unpadded). Every other input must
 /// fit its slots, since DEE's own count check is then open.
 fn unpadded(inputs: &[Input]) -> Result<Vec<WavSlots>, String> {
     let mut found: Vec<WavSlots> = Vec::new();
@@ -73,6 +73,14 @@ fn option<'a>(argument: &'a str, next: Option<&'a String>, names: &[&str]) -> Op
         } else {
             None
         }
+    })
+}
+
+/// An output given as `named_pipe://`.
+pub fn output_pipe(native: &[String]) -> bool {
+    native.iter().enumerate().any(|(index, argument)| {
+        option(argument, native.get(index + 1), &["-o", "--output"])
+            .is_some_and(|output| output.starts_with("named_pipe://"))
     })
 }
 
@@ -295,6 +303,18 @@ mod tests {
         assert_eq!(native[3], "pcm_s16le:channels=6:streaming=1");
         let mut native = args(&["-f", "pcm_s16le:channels=5", "-i", pipe]);
         assert!(ddp_pcm(&mut native, "L R C - S -").is_err());
+
+        assert!(output_pipe(&args(&[
+            "-i",
+            &four,
+            "--output=named_pipe:///x/out"
+        ])));
+        assert!(!output_pipe(&args(&[
+            "-i",
+            "named_pipe:///x/in",
+            "-o",
+            &six
+        ])));
 
         let run = |layout: &str, rest: &[&str]| {
             let mut native = args(&["--presentation", "8ch", "-f", "wav", "-i", &four]);

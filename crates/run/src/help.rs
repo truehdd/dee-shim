@@ -140,14 +140,14 @@ INPUT
     dee_shim ddp_encoder --layout 6.1/eac3 --bitrate 1024 -- --input-format wav -i in.wav -o out.ec3
   A multichannel WAV holds the layout's input slots in order (see --list), with a silent
   channel for each '-' slot: DEE codes only the listed slots but measures loudness over every
-  channel, so audio in a '-' slot changes the stream's dialnorm. With --unpadded-wav the
+  channel, so audio in a '-' slot changes the stream's dialnorm. With --unpadded the
   WAV holds only the layout's channels, in that order: four channels L R C S for 4.0.
-    dee_shim ddp_encoder --layout 4.0 --unpadded-wav -- --input-format wav -i in.wav -o out.ec3
+    dee_shim ddp_encoder --layout 4.0 --unpadded -- --input-format wav -i in.wav -o out.ec3
   With --input-format wav_list give one mono WAV per slot and '-' for an empty one, with or
   without the switch.
   Raw PCM follows the same rule by the channels= of its format, also through a pipe, which DEE
   takes only as raw PCM (a pipe needs streaming=1 and sample_count):
-    dee_shim ddp_encoder --layout 4.0 --unpadded-wav -- --input-format \\
+    dee_shim ddp_encoder --layout 4.0 --unpadded -- --input-format \\
         pcm_s24le:sample_rate=48000:channels=4:streaming=1:sample_count=N \\
         -i named_pipe:///tmp/in -o out.ec3
 
@@ -227,9 +227,9 @@ LAYOUT
   judges the result against the disc type.
     dee_shim dthd_encoder --layout 8ch=7.1-wide -- --presentation 8ch --input-format wav \\
         -i in.wav -o out.mlp
-  With --unpadded-wav a presentation's WAV holds only its layout's channels, in that order:
+  With --unpadded a presentation's WAV holds only its layout's channels, in that order:
   four channels L R C Cs for 4.0 in an 8ch presentation. A wav_list keeps one entry per slot.
-    dee_shim dthd_encoder --layout 4.0 --layout 6ch=3.0 --unpadded-wav -- --presentation 8ch \\
+    dee_shim dthd_encoder --layout 4.0 --layout 6ch=3.0 --unpadded -- --presentation 8ch \\
         --input-format wav -i in.wav -o out.mlp
   1.0 in a 2ch presentation takes slot 1 and is coded as Mono; with --target dvd-a it becomes
   a lone centre.
@@ -295,7 +295,7 @@ other layouts of --list, which --layout opens for an input with that many channe
 INPUT
   A WAV holds exactly the layout's channels in the order of --list, with no silent channels:
   four channels L R C S for 4.0. That is the file ddp_encoder and dthd_encoder take with
-  --unpadded-wav. With --input-format wav_list give one mono WAV per channel:
+  --unpadded. With --input-format wav_list give one mono WAV per channel:
     dee_shim measure_loudness --layout 4.0 -- --input-format wav_list \\
         -i L.wav:R.wav:C.wav:S.wav --output-manifest out.json
 

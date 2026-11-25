@@ -5,9 +5,11 @@ release notes and refuses to run without it, so write it before running the work
 
 ## Unreleased
 
-- `ddp_encoder --unpadded-wav` also takes raw PCM with only the layout's channels
-  (`pcm_s24le:channels=4:...` for 4.0), from a file or through `named_pipe://`. The result is
-  the same as from the padded input.
+- `--unpadded-wav` is now `--unpadded`; the old name still works. In `ddp_encoder` it also takes
+  raw PCM with only the layout's channels (`pcm_s24le:channels=4:...` for 4.0), from a file or
+  through `named_pipe://`. The result is the same as from the padded input.
+- `dthd_encoder` refuses `-o named_pipe://...`. DEE cannot write TrueHD to a pipe: it made a
+  directory of that name, wrote the stream there and reported success.
 
 ## v0.4.0
 

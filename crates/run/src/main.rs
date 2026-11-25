@@ -287,8 +287,8 @@ struct DdpArgs {
     recipe: LayoutArgs,
 
     /// The WAV or raw PCM input holds only the layout's channels, in order: L R C S for 4.0
-    #[arg(long, requires = "layout")]
-    unpadded_wav: bool,
+    #[arg(long, alias = "unpadded-wav", requires = "layout")]
+    unpadded: bool,
 
     /// 5.1 core downmix for 7.0/7.1 layouts, including /eac3
     ///
@@ -367,8 +367,13 @@ struct DthdArgs {
     layout: Vec<String>,
 
     /// A WAV holds only its layout's channels, in order: L R C Cs for 4.0
-    #[arg(long, requires = "layout", help_heading = "Layout")]
-    unpadded_wav: bool,
+    #[arg(
+        long,
+        alias = "unpadded-wav",
+        requires = "layout",
+        help_heading = "Layout"
+    )]
+    unpadded: bool,
 
     /// List the layouts, then exit
     #[arg(long, help_heading = "Layout")]
@@ -629,9 +634,7 @@ fn dthd_list() {
         let line = format!("  {:<width$} {row}{fits}  {}", l.name, l.note);
         println!("{}", line.trim_end());
     }
-    println!(
-        "\n  With --unpadded-wav the WAV holds only its layout's channels, without the - slots."
-    );
+    println!("\n  With --unpadded the WAV holds only its layout's channels, without the - slots.");
 }
 
 /// Check a dthd --drc entry, `[TYPE=]PROFILE`.
@@ -1156,7 +1159,9 @@ fn run() -> i32 {
         }
         if exe == "dee_ddp_encoder" {
             println!("\n  The layouts up to 5.1 are also Dolby Digital (AC-3): add --mode dd.");
-            println!("  With --unpadded-wav the WAV holds only the layout's channels, without the - slots.");
+            println!(
+                "  With --unpadded the WAV holds only the layout's channels, without the - slots."
+            );
         }
         let r = rates::render(exe, 2, 92);
         if !r.is_empty() {
@@ -1430,13 +1435,22 @@ fn run() -> i32 {
         }
     };
 
-    // --unpadded-wav: a WAV or raw PCM input with only its layout's channels is spread over the
+    // DEE takes the URI as a file name there and writes a directory tree of that name.
+    if matches!(tool, Tool::Dthd(_)) && wav_slots::output_pipe(&native) {
+        usage_error(
+            tool,
+            ErrorKind::InvalidValue,
+            "dee_dthd_encoder cannot write to a pipe; give -o a file",
+        );
+    }
+
+    // --unpadded: a WAV or raw PCM input with only its layout's channels is spread over the
     // input slots.
     let unpadded = match tool {
-        Tool::Dthd(a) if a.unpadded_wav => {
+        Tool::Dthd(a) if a.unpadded => {
             wav_slots::dthd(&native, &a.layout.join(";")).map(|w| ("DTHD_WAV_SLOTS", w))
         }
-        Tool::Ddp(a) if a.unpadded_wav => {
+        Tool::Ddp(a) if a.unpadded => {
             let slots = a
                 .recipe
                 .layout
