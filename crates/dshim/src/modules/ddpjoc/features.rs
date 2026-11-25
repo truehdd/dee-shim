@@ -68,6 +68,8 @@ type Fn6 = extern "C" fn(usize, usize, usize, usize, usize, usize) -> i64;
 
 // backbone layer
 static PE_TRAMP: AtomicUsize = AtomicUsize::new(0);
+static LAYOUT_TRAMP: AtomicUsize = AtomicUsize::new(0);
+const RENDER_5_1_2: i32 = 19;
 const RENDER_7_1: i32 = 21;
 // 5.1.2 top-surround backbone (Lts/Rts): the render fan-out's code bitmask covers {19, 21, 28}
 // and the channel mask table has an entry for it.
@@ -107,6 +109,29 @@ extern "C" fn hook_pre_engine(
     }
     let tr: Fn6 = unsafe { std::mem::transmute(PE_TRAMP.load(Ordering::Relaxed)) };
     tr(a1, a2, a3, a4, a5, a6)
+}
+
+/// The core's set_layout(state, code, ..): pass the backbone target in place of 5.1.2. The
+/// front end names the code twice: query-memory parameter 11 (render_param4) sizes the core at
+/// open, and a per-frame parameter sets it again, to 19, before every frame. set_layout stores
+/// it at state+0x34 and gives it to the core downmixer, and the first frame's delay setup reads
+/// it. Left at 19 there, the core's Ls Rs were mixed by the 5.1.2 matrix (L plus channel 7),
+/// and on 7.1 came 1280 samples late.
+extern "C" fn hook_set_layout(
+    state: usize,
+    code: usize,
+    a3: usize,
+    a4: usize,
+    a5: usize,
+    a6: usize,
+) -> i64 {
+    let code = if code as i32 == RENDER_5_1_2 {
+        RENDER_TARGET.load(Ordering::Relaxed) as usize
+    } else {
+        code
+    };
+    let tr: Fn6 = unsafe { std::mem::transmute(LAYOUT_TRAMP.load(Ordering::Relaxed)) };
+    tr(state, code, a3, a4, a5, a6)
 }
 
 /// engine_check(cfg, state + 4): write the forced rate of this substream into cfg+120 first.
@@ -177,8 +202,8 @@ pub fn install(res: &Resolver, log: &mut dyn Write) {
     let joc = &crate::levers().ddpjoc;
 
     // A non-default backbone layer maps to (render code, frontend render_param4 site): 7.1 -> 21,
-    // 5.1.2-top -> 28. Both patch render_param4 and hook the outer core's per-frame process
-    // (ddpjoc.core.render_fanout). The default 5.1.2 sets none.
+    // 5.1.2-top -> 28. Both patch render_param4 and hook the core's set_layout and its per-frame
+    // process (ddpjoc.core.render_fanout). The default 5.1.2 sets none.
     let backbone_target: Option<(i32, &str)> = match joc.layer {
         None | Some(Layer::L512) => None,
         Some(Layer::L71) => Some((RENDER_7_1, "ddpjoc.frontend.render_param4")),
@@ -213,7 +238,7 @@ pub fn install(res: &Resolver, log: &mut dyn Write) {
         require_all(
             res,
             "backbone layer",
-            &[rp4, "ddpjoc.core.render_fanout"],
+            &[rp4, "ddpjoc.core.render_fanout", "ddpjoc.core.set_layout"],
             log,
         )
     });
@@ -262,6 +287,14 @@ pub fn install(res: &Resolver, log: &mut dyn Write) {
             &s[1],
             hook_pre_engine as *const () as usize,
             &PE_TRAMP,
+            log,
+        );
+        hook(
+            "backbone layer",
+            "ddpjoc.core.set_layout",
+            &s[2],
+            hook_set_layout as *const () as usize,
+            &LAYOUT_TRAMP,
             log,
         );
     }

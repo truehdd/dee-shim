@@ -68,6 +68,13 @@ static SITES: &[Site] = &[
         note: "Per-frame backbone fan-out; the hook copies the master layout at state+0x34 to +0x24 before the 5.1.2-only handle is used.",
     },
     Site {
+        name: "ddpjoc.core.set_layout",
+        va: 0x10083fc30,
+        kind: Kind::Hook { steal: 13 },
+        expect: "55 48 89 e5 41 57 41 56 53 50 49 89 fe",
+        note: "The core's set_layout(state, code, ..), called at open and before every frame; the hook passes the backbone target in place of 19.",
+    },
+    Site {
         name: "ddpjoc.core.prog_mode11_ss0_kind",
         va: 0x100f6a874,
         kind: Kind::Patch { new: "00 00 00 00" },

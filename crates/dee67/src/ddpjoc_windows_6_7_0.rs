@@ -77,6 +77,13 @@ static SITES: &[Site] = &[
         note: "Per-frame backbone fan-out; the hook forces the master backbone layout at state+0x34.",
     },
     Site {
+        name: "ddpjoc.core.set_layout",
+        va: 0x1406b36e0,
+        kind: Kind::Hook { steal: 13 },
+        expect: "48 89 5c 24 08 57 48 83 ec 20 48 8b f9",
+        note: "The core's set_layout(state, code, ..), called at open and before every frame; the hook passes the backbone target in place of 19.",
+    },
+    Site {
         name: "ddpjoc.core.prog_mode11_ss0_kind",
         va: 0x140c981e4,
         kind: Kind::Patch { new: "00 00 00 00" },

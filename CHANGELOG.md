@@ -10,6 +10,10 @@ release notes and refuses to run without it, so write it before running the work
   through `named_pipe://`. The result is the same as from the padded input.
 - `dthd_encoder` refuses `-o named_pipe://...`. DEE cannot write TrueHD to a pipe: it made a
   directory of that name, wrote the stream there and reported success.
+- Fixed: with `ddpjoc_encoder --layout 7.1` and `5.1.2-top` (also `/eac3`), the 5.1 core's Ls
+  and Rs were mixed from the wrong channels (L and R plus the rear or top pair), and on 7.1
+  they were 1280 samples late. They now hold the surrounds with the rear or top pair folded
+  in, in time. A decoder that reads the whole stream was not affected (#9).
 - A native `-e` that names a mode now overrides the layout's mode, as `--mode` does: `--layout
   4.0 -- -e dd` is `--layout 4.0 --mode dd`. It was refused before (#7).
 
