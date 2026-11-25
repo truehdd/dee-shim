@@ -3,7 +3,7 @@
 Each release has a section headed by its tag. The release workflow publishes that section as the
 release notes and refuses to run without it, so write it before running the workflow.
 
-## Unreleased
+## v0.5.0
 
 - `--unpadded-wav` is now `--unpadded`; the old name still works. In `ddp_encoder` it also takes
   raw PCM with only the layout's channels (`pcm_s24le:channels=4:...` for 4.0), from a file or
