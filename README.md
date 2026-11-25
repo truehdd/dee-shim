@@ -30,8 +30,8 @@ that private copy in memory, and runs it.
 
 ```sh
 cargo build --release -p dee_shim
-cp target/release/dee_shim /path/to/dee/install/ # beside the DEE tools, so no --binary is needed
-dee_shim ddpjoc_encoder --list                           # layouts and data rates
+cp target/release/dee_shim /path/to/dee/install/   # beside the DEE tools, so no --binary is needed
+dee_shim ddpjoc_encoder --list                     # layouts and data rates
 dee_shim ddpjoc_encoder --layout 7.1 -- --input-format atmos_mezz -i in.atmos -o out.ec3
 ```
 
@@ -49,6 +49,7 @@ Every feature works the same on macOS, Linux and Windows.
 | 31 layouts from 1+1 to 7.1, each with its input order and data rates | `--layout`, `--list` |
 | An E-AC-3 core in place of the AC-3 core for the extended layouts | `/eac3` |
 | Dolby Digital (AC-3) for every layout up to 5.1 | `--mode dd` |
+| A WAV with only the layout's channels, no silent ones | `--unpadded-wav` |
 | A data rate per substream | `--bitrate R0:R1` |
 | The 5.1 core downmix of 7.0 and 7.1 | `--core-type` |
 | DEE's encoder mode chosen outright, native `-e` sub-options kept | `--mode` |
@@ -75,6 +76,7 @@ Every feature works the same on macOS, Linux and Windows.
 | DVD-A (FBB): 2ch at any rate, 6ch up to 96 kHz | `--target dvd-a` |
 | No disc rules: any rate at 2, 6 or 8 channels | `--target non-conformant-fba` |
 | Other speaker layouts per presentation | `--layout`, `--list` |
+| A WAV with only the layout's channels, no silent ones | `--unpadded-wav` |
 | A job authored from a JSON spec | `--compose` |
 | Your own job file | `--mll` |
 
@@ -90,18 +92,13 @@ Every feature works the same on macOS, Linux and Windows.
 |---|---|
 | 7.1, 5.1.4, 7.1.4, 9.1.6 and 3.0 to 5.0 input, which DEE's meter has but its CLI refuses | `--layout`, `--list` |
 
-Every tool also takes raw levers (`--set NAME=VALUE`) and prints the command it would run
-(`--dry-run`). DEE's own `-e` sub-options, such as the DRC profiles, keep working under the mode
-a layout picks (see [Layouts and modes](#layouts-and-modes)).
+`dee_shim <tool> --help` explains every switch and lever, and `dee_shim <tool> --list` prints the
+tool's layouts with their input order (`ddp_decoder` has no list). Every tool also takes raw
+levers (`--set NAME=VALUE`) and prints the command it would run (`--dry-run`).
 
 On Windows, `ddpjoc_encoder` and `dthd_encoder` run faster on AMD Zen CPUs: dee_shim replaces a
 slow zero-fill in DEE on every run. `--set DDPJOC_ZERO_FILL_ORIGINAL=1` (`DTHD_ZERO_FILL_ORIGINAL=1`
 for `dthd_encoder`) keeps DEE's own code, for comparing.
-
-`dee_shim <tool> --help` explains every switch and lever. `dee_shim ddp_encoder --list` and
-`dee_shim ddpjoc_encoder --list` print the layouts, their input order and the accepted data rates;
-`dee_shim dthd_encoder --list` prints the TrueHD layouts slot by slot, and
-`dee_shim measure_loudness --list` the meter's.
 
 ## Usage
 
@@ -116,7 +113,7 @@ dee_shim ddpjoc_encoder --layout 7.1/eac3 --bitrate 384:640 -- \
   --input-format atmos_mezz -i in.atmos -o out.ec3
 
 dee_shim dthd_encoder --oamd-as-is on --as-is on -- \
-  --presentation atmos -f atmos_mezz -i in.atmos -o out.mlp
+  --presentation atmos --input-format atmos_mezz -i in.atmos -o out.mlp
 
 dee_shim ddp_decoder --layout native -- \
   -i in.ec3 -o out.wav --output-format wav
@@ -131,11 +128,38 @@ dee_shim measure_loudness --layout 7.1 -- \
 | Finding the tool | `--binary PATH`, or else the tool beside `dee_shim`. |
 | Licence file | DEE reads the `license.lic` beside the tool; pass DEE's own `--license PATH` for another. |
 | Paths | Resolved against the caller's working directory, which is never changed. |
-| WAV input (`ddp_encoder`) | A multichannel WAV holds the layout's input slots in the order `--list` prints, with a silent channel for each `-` slot. DEE codes only the listed slots but measures loudness over every channel, so audio in a `-` slot changes the stream's dialnorm. With `--unpadded-wav` the WAV holds only the layout's channels, in that order (four channels `L R C S` for 4.0); `dthd_encoder` has the switch too. `--input-format wav_list` takes one mono WAV per slot and `-` for an empty one. |
-| Layout of `ddp_decoder` | `--layout native` stands in for DEE's `-c`. The output has the stream's channels: `L R C LFE Ls Rs Lrs Rrs` for 7.1, and one or two channels for a mono or stereo stream. An Atmos stream gives its channel backbone; the objects are not rendered. A WAV's channel mask is DEE's for the channel count, so go by the order: eight channels are marked as 7.1 whatever the last pair is, and three, four and seven channels get no mask. |
-| Layout of `measure_loudness` | The input must have the layout's channel count, with no silent channels (the file the encoders take with `--unpadded-wav`); another count is refused, 5.1 too, though mono and stereo are still measured as themselves. The meter takes the layout from the channel order alone, so 4.0 and 4.0-quad, or 3.0 and 3.0-back, cannot be told apart: the wrong name gives a wrong figure without a message. 3.0 to 5.0 are reported as `multichannel_5_1`. |
-| Loudness in bluray mode | DEE refuses loudness correction there, so pass `--loudness-management measure_only` with the `ddp_encoder` layouts that have an AC-3 core. |
 | Version | `-V` prints `vX.Y.Z+gHASH` at a release tag and `vX.Y.Z+N-gHASH` N commits after it. |
+
+### Input channels
+
+DEE reads audio by position and ignores a WAV's channel mask, so the channel order decides what
+is coded. `--list` prints each layout's order.
+
+| Input | `ddp_encoder`, `dthd_encoder` | `measure_loudness` |
+|---|---|---|
+| `wav` | one channel per input slot, silent for each `-` slot | only the layout's channels |
+| `wav` with `--unpadded-wav` | only the layout's channels | (always so) |
+| `wav_list` | one mono WAV per slot, `-` for an empty slot | one mono WAV per channel |
+
+4.0 in `ddp_encoder` has the slots `L R C - S -`: a six-channel WAV with two silent channels, or
+with `--unpadded-wav` a four-channel one, which `measure_loudness --layout 4.0` takes as it is.
+
+```sh
+dee_shim ddp_encoder --layout 4.0 --unpadded-wav -- \
+  --input-format wav -i in.wav -o out.ec3
+
+dee_shim ddp_encoder --layout 4.0 -- \
+  --input-format wav_list -i L.wav:R.wav:C.wav:-:S.wav:- -o out.ec3
+```
+
+- **`ddp_encoder`** codes only the listed slots but measures loudness over every channel, so
+  audio in a `-` slot changes the stream's dialnorm.
+- **`dthd_encoder`** takes one input per independent presentation, each padded or not. Two
+  unpadded inputs with the same channel count are refused; pad one of them.
+- **`measure_loudness`** refuses an input of another channel count than the layout's, 5.1 too,
+  though mono and stereo are still measured as themselves. It cannot tell 4.0 from 4.0-quad, or
+  3.0 from 3.0-back: the wrong name gives a wrong figure without a message. 3.0 to 5.0 are
+  reported as `multichannel_5_1`.
 
 ### Layouts and modes
 
@@ -155,15 +179,20 @@ DEE has no mode that codes these extended layouts with an E-AC-3 core. The `/eac
 dee_shim's own: it runs DEE in the mode shown and replaces the core, so the mode a layout uses
 does not name the stream it produces.
 
-DEE's own `-e` may still be given. Its sub-options are kept, so `-e ddp:drc_profile=none` works with
-any `ddp_encoder` layout; a mode named in it must match the layout's mode or `--mode`, or dee_shim
-refuses the run. `--mode` overrides the layout's mode and keeps the layout's sub-options (5.0
-stays without LFE); sub-options given with it win over those of a native `-e`. Dolby Digital has
-no dependent substream, so `--mode dd` is refused with the extended layouts. A native `--data-rate` is handled exactly as `--bitrate`; giving both with
-different totals is refused.
-A layout's own mode is the tested one; another mode can ask for something the encoder refuses.
-`dee_ddp_encoder` also has two modes its documentation omits, `bluray` and `bluray_secondary` (one E-AC-3
-independent substream, at most 256 kbps). `--dry-run` prints the `-e` that DEE will get.
+- **`--mode`** overrides the layout's mode and keeps the layout's sub-options (5.0 stays without
+  LFE). A layout's own mode is the tested one; another mode can ask for something the encoder
+  refuses. `--dry-run` prints the `-e` that DEE will get.
+- **`--mode dd`** is refused with the extended layouts, as Dolby Digital has no dependent
+  substream.
+- **A native `-e`** may still be given. Its sub-options are kept, so `-e ddp:drc_profile=none`
+  works with any `ddp_encoder` layout. A mode named in it must match the layout's mode or
+  `--mode`, or dee_shim refuses the run; sub-options given with `--mode` win over its own.
+- **Hidden modes.** `dee_ddp_encoder` has two modes its documentation omits: `bluray` and
+  `bluray_secondary` (one E-AC-3 independent substream, at most 256 kbps).
+- **Loudness in `bluray` mode.** DEE refuses loudness correction there, so pass
+  `--loudness-management measure_only` with the `ddp_encoder` layouts that have an AC-3 core.
+- **A native `--data-rate`** is handled exactly as `--bitrate`; giving both with different
+  totals is refused.
 
 ### TrueHD layouts
 
@@ -182,6 +211,15 @@ dee_shim dthd_encoder --layout 5.1.2 -- \
 dee_shim dthd_encoder --layout 8ch=5.1.2 -- \
   --presentation atmos --input-format atmos_mezz -i in.atmos -o out.mlp
 ```
+
+### Decoder output
+
+`ddp_decoder --layout native` stands in for DEE's `-c`, so leave `-c` out. The output has the
+stream's own channels: `L R C LFE Ls Rs Lrs Rrs` for 7.1, and one or two channels for a mono or
+stereo stream. An Atmos stream gives its channel backbone; the objects are not rendered.
+
+The WAV's channel mask is DEE's for the channel count, so go by the order: eight channels are
+marked as 7.1 whatever the last pair is, and three, four and seven channels get no mask.
 
 ### Tips
 
