@@ -141,8 +141,10 @@ INPUT
   A multichannel WAV holds the layout's input slots in order (see --list), with a silent
   channel for each '-' slot: DEE codes only the listed slots but measures loudness over every
   channel, so audio in a '-' slot changes the stream's dialnorm. With --unpadded-wav the
-  WAV holds only the layout's channels, in that order: four channels L R C S for 4.0. With
-  --input-format wav_list give one mono WAV per slot and '-' for an empty one.
+  WAV holds only the layout's channels, in that order: four channels L R C S for 4.0.
+    dee_shim ddp_encoder --layout 4.0 --unpadded-wav -- --input-format wav -i in.wav -o out.ec3
+  With --input-format wav_list give one mono WAV per slot and '-' for an empty one, with or
+  without the switch.
 
 LEVERS (--set KEY=VAL; the switches above set the others)
   DDP_ACMOD=<0..28>           core parameter 4, the layout (acmod) code --layout picks
@@ -215,13 +217,15 @@ LAYOUT
   It names the slots L R (2ch), L R C LFE Ls Rs (6ch), or those and Lrs Rrs (8ch).
   --layout [TIER=]NAME renames one presentation's slots, - leaving a slot out; NAME is a layout
   from --list or a comma list of slot labels, and without TIER it is for the top presentation.
-  With --unpadded-wav a presentation's WAV holds only its layout's channels, in that order:
-  four channels L R C Cs for 4.0 in an 8ch presentation.
   Repeat it for another presentation. A downmix presentation takes its outputs from the layout
   and is mixed again from the presentation above it with DEE's own coefficients. The engine
   judges the result against the disc type.
     dee_shim dthd_encoder --layout 8ch=7.1-wide -- --presentation 8ch --input-format wav \\
         -i in.wav -o out.mlp
+  With --unpadded-wav a presentation's WAV holds only its layout's channels, in that order:
+  four channels L R C Cs for 4.0 in an 8ch presentation. A wav_list keeps one entry per slot.
+    dee_shim dthd_encoder --layout 4.0 --layout 6ch=3.0 --unpadded-wav -- --presentation 8ch \\
+        --input-format wav -i in.wav -o out.mlp
   1.0 in a 2ch presentation takes slot 1 and is coded as Mono; with --target dvd-a it becomes
   a lone centre.
     dee_shim dthd_encoder --layout 2ch=1.0 -- --presentation 2ch --input-format wav_list \\
@@ -282,6 +286,13 @@ other layouts of --list, which --layout opens for an input with that many channe
   dee_shim measure_loudness --layout 7.1 -- --input-format wav -i in.wav \\
       --output-manifest out.json
 1.0, 2.0 and 5.1 are DEE's own, and --layout changes nothing for them.
+
+INPUT
+  A WAV holds exactly the layout's channels in the order of --list, with no silent channels:
+  four channels L R C S for 4.0. That is the file ddp_encoder and dthd_encoder take with
+  --unpadded-wav. With --input-format wav_list give one mono WAV per channel:
+    dee_shim measure_loudness --layout 4.0 -- --input-format wav_list \\
+        -i L.wav:R.wav:C.wav:S.wav --output-manifest out.json
 
 LAYOUT
   The meter reads the layout from the channel order, whatever the WAV's channel mask says.
